@@ -1,6 +1,6 @@
 # dev-workflow
 
-One build workflow for AI coding agents, written for Claude Code and assembled from other people's skills plus one of mine. Matt Pocock's skills decide what happens next. My `changeable-software` skill decides what good looks like at each step. A workflow file ties them together and adds parallel ticket waves, so independent tickets build at the same time. I built it with an AI pair, which seemed only fair for a workflow about building with one.
+One build workflow for AI coding agents, written for Claude Code and assembled from other people's skills plus one of mine. Matt Pocock's skills decide what happens next. My `changeable-software` skill decides what good looks like at each step. A workflow file ties them together and adds parallel ticket waves, so independent tickets build at the same time. I built it with [Claude](https://www.anthropic.com/claude), by [Anthropic](https://github.com/anthropics), as my pair, which seemed only fair for a workflow about building with an AI agent.
 
 The full walkthrough is in [docs/workflow-guide.md](docs/workflow-guide.md). This page covers what's in the box, who made it, and how to install it.
 
