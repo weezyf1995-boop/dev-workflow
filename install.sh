@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs the claude-dev-workflow stack for Claude Code at user level (~/.claude), so every project gets it.
+# Installs the dev-workflow stack for Claude Code at user level (~/.claude), so every project gets it.
 # Safe to re-run: it reinstalls the third-party skills and backs up anything of ours it replaces.
 set -euo pipefail
 

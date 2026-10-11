@@ -1,6 +1,6 @@
-# claude-dev-workflow
+# dev-workflow
 
-One build workflow for Claude Code, assembled from other people's skills plus one of mine. Matt Pocock's skills decide what happens next. My `changeable-software` skill decides what good looks like at each step. A workflow file ties them together and adds parallel ticket waves, so independent tickets build at the same time.
+One build workflow for AI coding agents, written for Claude Code and assembled from other people's skills plus one of mine. Matt Pocock's skills decide what happens next. My `changeable-software` skill decides what good looks like at each step. A workflow file ties them together and adds parallel ticket waves, so independent tickets build at the same time.
 
 The full walkthrough is in [docs/workflow-guide.md](docs/workflow-guide.md). This page covers what's in the box, who made it, and how to install it.
 
@@ -37,8 +37,8 @@ Nothing from the projects below is copied into this repo. The installer fetches 
 You need [Claude Code](https://docs.claude.com/en/docs/claude-code/overview), git and Node.js.
 
 ```bash
-git clone https://github.com/weezyf1995-boop/claude-dev-workflow.git
-cd claude-dev-workflow
+git clone https://github.com/weezyf1995-boop/dev-workflow.git
+cd dev-workflow
 bash install.sh
 ```
 
@@ -49,6 +49,10 @@ Check it worked by running `/memory` in a session: `dev-workflow.md` should be i
 **Don't also install the Pocock or Addy Osmani plugins.** The installer copies skills in by name. Adding either plugin on top gives you every skill twice, and Addy's full plugin brings back nineteen skills that compete with the Pocock flow.
 
 **Claude Code on the web.** Cloud sessions don't read your local `~/.claude`. Add `skills/changeable-software` and `cloud/dev-workflow` to your account as skills, and install the Pocock and Addy Osmani skills there the same way.
+
+## Other AI coding agents
+
+The skills travel; the glue is written for Claude Code. Pocock's and Osmani's skills are plain Markdown that Codex, Cursor and other agents can use (`npx skills add` installs them for any supported agent through `-a <agent>`), and changeable-software is the same. The workflow file leans on Claude Code features: the `@` import in `CLAUDE.md`, subagents in git worktrees for parallel tickets, `/memory`, and the Opus and Sonnet model rule. On another agent, load `workflow/dev-workflow.md` the way that agent loads instructions (`AGENTS.md`, for example) and expect to adapt those parts. `install.sh` targets Claude Code only.
 
 ## Updating
 

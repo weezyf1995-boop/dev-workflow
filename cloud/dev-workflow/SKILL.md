@@ -3,7 +3,7 @@ name: dev-workflow
 description: "Coding workflow: which skill runs when (Matt Pocock skills plus changeable-software), parallel ticket waves, and the rules for cloud sessions. Use at the start of any coding task."
 ---
 
-> Source: workflow/dev-workflow.md in claude-dev-workflow. Local installs load that file through ~/.claude/CLAUDE.md; this skill is how cloud sessions get it. If the two disagree, the workflow file wins.
+> Source: workflow/dev-workflow.md in the dev-workflow repo. Local installs load that file through ~/.claude/CLAUDE.md; this skill is how cloud sessions get it. If the two disagree, the workflow file wins.
 
 # Dev workflow: Pocock skills + changeable-software
 
