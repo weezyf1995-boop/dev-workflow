@@ -13,7 +13,7 @@ mkdir -p "$CLAUDE_DIR/skills"
 # Matt Pocock's skills, by name, so in-progress and deprecated folders in his repo stay out.
 POCOCK=(grill-with-docs grill-me grilling handoff to-spec to-tickets implement tdd code-review
   codebase-design domain-modeling diagnosing-bugs prototype research triage wayfinder
-  improve-codebase-architecture setup-matt-pocock-skills resolving-merge-conflicts wizard
+  improve-codebase-architecture setup-matt-pocock-skills wizard
   ask-matt to-questionnaire wait-what teach writing-for-agents)
 
 # Only six of Addy Osmani's skills: the rest of his pack overlaps the Pocock flow.
