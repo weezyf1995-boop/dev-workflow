@@ -57,3 +57,7 @@ The skills travel; the glue is written for Claude Code. Pocock's and Osmani's sk
 ## Updating
 
 Re-run `bash install.sh`. It pulls the latest third-party skills and moves any old copy of this repo's files to `~/.claude/skills-backup/` before replacing it.
+
+## Licence
+
+The files in this repo are MIT licensed: see [LICENSE](LICENSE). The skills the installer fetches carry their own licences in their own repos.
