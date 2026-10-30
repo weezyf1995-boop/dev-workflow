@@ -12,7 +12,7 @@ Before any work, Claude sizes the request and classifies it with changeable-soft
 
 | The request is | Route |
 | --- | --- |
-| Small, about one file, no new boundary (light path) | Make the change, run feedback, run the checklist. No flow. |
+| Small, about one file, no new boundary, nothing touching money, auth or stored data (light path) | Make the change, run feedback, run the checklist. No flow. |
 | Chaotic: broken right now | `/diagnosing-bugs`. Stabilise, then understand. |
 | Clear | Main flow, no prototype detour. |
 | Complicated: a knowledge gap | `/research` first, then main flow at `/grill-with-docs`. |
@@ -28,14 +28,14 @@ Commands in bold are ones only you can start; Claude stops and names them when t
 
 1. **/setup-matt-pocock-skills**, once per repo. It records your issue tracker and label names.
 2. **/grill-with-docs** (no repo yet: **/grill-me**). Claude questions the idea until it's sharp. Every concept gets exactly one name, recorded in `CONTEXT.md`.
-3. Prototype detour, when only running code can answer a question: **/handoff** out, **/prototype** in a fresh session, **/handoff** back. Mandatory for complex problems.
-4. Interfaces first. Before the work is split, Claude writes the interfaces, says where the complexity went and who pays for it, and makes the first ticket the thinnest end-to-end slice.
+3. Prototype detour, when only running code can answer a question: Claude runs /prototype in a subagent in its own git worktree, and only the answer comes back into the grilling. Mandatory for complex problems.
+4. Interfaces first. Before the work is split, Claude writes the interfaces, says where the complexity went and who pays for it, and makes the first ticket the thinnest end-to-end slice. An interface with two or more callers, or one in front of a frozen core, gets designed twice by parallel subagents before the shape is settled.
 5. **/to-spec**, then **/to-tickets**. Tickets are vertical slices, each listing the tickets that block it.
 6. The wave plan, which Claude writes without being asked (next section).
-7. **/implement**, once, against the plan. In each ticket Claude names its feedback loop and works test-first with /tdd where that honestly fits.
-8. /code-review before every commit, with changeable-software's review checklist as the standards source. Claude runs this itself; it's an instruction, not an enforced gate.
+7. **/implement**, once, against the plan. Planning (steps 2 to 6) runs on a cheaper model; the build runs on Opus. Claude hands over by relay: it writes a handoff file and opens a fresh session with `/implement <handoff>` typed in, so you press Enter rather than switching models mid-session. In each ticket Claude names its feedback loop and works test-first with /tdd where that honestly fits.
+8. /code-review before every commit, with changeable-software's review checklist and codebase-design as the standards sources. Claude runs this itself; it's an instruction, not an enforced gate.
 
-Keep steps 2 to 5 in one session, compacting at a step boundary if it nears about 150k tokens.
+Keep steps 2 to 5 in one session. Past 200k tokens, compact at the next step boundary; past 400k, Claude relays to a fresh session at the next boundary.
 
 ## Waves: tickets in parallel
 
@@ -43,9 +43,10 @@ After /to-tickets, Claude groups the tickets into waves so independent ones buil
 
 - **Layering.** Wave 1 is every ticket with no blockers. Wave N is every ticket whose blockers all sit in earlier waves.
 - **Clashes.** No blocker doesn't mean safe to run together. Two tickets in one wave that touch the same area (a migration, a shared type, config, a lockfile) can't build at once, so one drops a wave. Unsure counts as a clash.
+- **Shared rules.** Under the plan, Claude writes the rules every ticket must hold: the vocabulary, the ADR shape, the frozen cores, and what no ticket touches. Every builder gets that block, and a ticket that would break one stops.
 - **Critical path.** The plan names the longest chain of blocking tickets. However many builders run, the build can't finish faster than that chain, so a long one means reworking the breakdown, not adding builders.
 - **Builders.** Each ticket builds as a fresh subagent in its own git worktree, at most three at once unless you set another number.
-- **Frontier, not waves.** A ticket starts the moment its own blockers have landed, without waiting for the rest of its wave. The waves are the plan you read; the frontier is what runs.
+- **Frontier, not waves.** A ticket starts the moment its own blockers have landed and no running builder holds any of its areas, without waiting for the rest of its wave. The waves are the plan you read; the frontier is what runs.
 - **Landing.** Finished tickets land one at a time: rebase onto main, run the full suite, merge.
 
 ## The build loop for each ticket
@@ -58,5 +59,9 @@ These defaults came from building a production app. A repo can tighten them with
 - **One fix round.** Blocking findings go back to the same builder, which still has its context. Speculative polish is deferred to the report.
 - **No waiting on you.** Gaps in a ticket are settled by the nearest precedent and recorded as Choices in its report.
 - **One commit per ticket**, its message naming each reviewer, its model and its verdict. The report says what changed in plain words, not as a diff.
+
+## Keeping context small
+
+Every request re-sends the whole conversation, so cost grows with context size times the number of calls. The hooks in `scripts/context_guard.py` warn past 200k and 400k tokens and nudge Claude after any shell output over 8,000 characters. `scripts/context_report.py` shows, per session, the peak context, the setup cost before any work, and which tools produced the oversized outputs. Run it weekly and tighten one rule at a time. Claude keeps one task per session, filters shell output at the source, and briefs subagents with the ticket and the diff, never the conversation.
 
 After the commit, Addy Osmani's six skills take over when the work is shipping, instrumenting, hardening, retiring or speeding something up.

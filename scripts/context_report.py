@@ -10,6 +10,7 @@ DAYS = int(sys.argv[1]) if len(sys.argv) > 1 else 7
 WARN, BIG = 200_000, 8_000
 since = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=DAYS)
 S = defaultdict(lambda: {"folder": "?", "start": None, "ctx": [], "sub": 0, "big": [], "seen": set()})
+TOOL_OF, BIG_BY_TOOL = {}, defaultdict(lambda: [0, 0])   # tool_use id -> name; name -> [count, chars]
 
 for f in glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursive=True):
     if os.path.getmtime(f) < since.timestamp():
@@ -28,6 +29,10 @@ for f in glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursiv
             s["folder"] = os.path.basename(r["cwd"].rstrip("/")) or r["cwd"]
         s["start"] = min(s["start"] or t, t)
         m = r.get("message") or {}
+        if r.get("type") == "assistant" and not sub and isinstance(m.get("content"), list):
+            for c in m["content"]:
+                if isinstance(c, dict) and c.get("type") == "tool_use":
+                    TOOL_OF[c.get("id")] = c.get("name", "?")
         if r.get("type") == "assistant" and m.get("usage"):
             key = (m.get("id"), r.get("requestId"))
             if key in s["seen"]:
@@ -44,6 +49,9 @@ for f in glob.glob(os.path.expanduser("~/.claude/projects/**/*.jsonl"), recursiv
                     n = len(json.dumps(c.get("content")))
                     if n >= BIG:
                         s["big"].append(n)
+                        b = BIG_BY_TOOL[TOOL_OF.get(c.get("tool_use_id"), "?")]
+                        b[0] += 1
+                        b[1] += n
 
 rows = [s for s in S.values() if s["ctx"]]
 rows.sort(key=lambda s: -max(s["ctx"]))
@@ -64,3 +72,7 @@ if rows:
     print(f"Median first request: {k(base)} (setup plus whatever the opening prompt pulls in)..")
     print(f"Subagents made {subs:,} of {reqs + subs:,} requests ({subs / max(1, reqs + subs):.0%}).")
     print(f"Tool outputs over {BIG:,} characters in main sessions: {bigs}.")
+    if BIG_BY_TOOL:
+        top = sorted(BIG_BY_TOOL.items(), key=lambda kv: -kv[1][1])[:5]
+        print("  by tool: " + ", ".join(f"{n.split('__')[-1]} {c} ({ch // 4000}k tokens)" for n, (c, ch) in top)
+              + ". Bash output is capped at 30k characters, so 30k entries hit the cap.")
