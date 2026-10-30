@@ -26,20 +26,20 @@ add() { # $1 repo, rest: skill names
   npx -y skills@latest add "$repo" "${args[@]}" -g -a claude-code -y
 }
 
-echo "1/4 Matt Pocock's skills (github.com/mattpocock/skills)"
+echo "1/5 Matt Pocock's skills (github.com/mattpocock/skills)"
 add mattpocock/skills "${POCOCK[@]}"
 
-echo "2/4 Addy Osmani's post-commit skills (github.com/addyosmani/agent-skills)"
+echo "2/5 Addy Osmani's post-commit skills (github.com/addyosmani/agent-skills)"
 add addyosmani/agent-skills "${ADDY[@]}"
 
 # Backups go outside skills/, or Claude Code would load the old copy as a second skill.
 backup() { mkdir -p "$BACKUP"; mv "$1" "$BACKUP/"; echo "   backed up old $(basename "$1") to $BACKUP"; }
 
-echo "3/4 changeable-software"
+echo "3/5 changeable-software"
 [ -e "$CLAUDE_DIR/skills/changeable-software" ] && backup "$CLAUDE_DIR/skills/changeable-software"
 cp -R "$HERE/skills/changeable-software" "$CLAUDE_DIR/skills/"
 
-echo "4/4 Workflow, loaded into every session through ~/.claude/CLAUDE.md"
+echo "4/5 Workflow, loaded into every session through ~/.claude/CLAUDE.md"
 [ -e "$CLAUDE_DIR/dev-workflow.md" ] && backup "$CLAUDE_DIR/dev-workflow.md"
 cp "$HERE/workflow/dev-workflow.md" "$CLAUDE_DIR/dev-workflow.md"
 F="$CLAUDE_DIR/CLAUDE.md"
@@ -49,6 +49,15 @@ else
   touch "$F"
   grep -qxF "@~/.claude/dev-workflow.md" "$F" || printf "\n@~/.claude/dev-workflow.md\n" >> "$F"
 fi
+
+echo "5/5 Context-budget and relay scripts, into ~/.claude/scripts"
+mkdir -p "$CLAUDE_DIR/scripts"
+for s in context_guard.py context_report.py relay.sh; do
+  [ -e "$CLAUDE_DIR/scripts/$s" ] && backup "$CLAUDE_DIR/scripts/$s"
+  cp "$HERE/scripts/$s" "$CLAUDE_DIR/scripts/$s"
+done
+chmod +x "$CLAUDE_DIR/scripts/relay.sh"
+echo "   The context guard only runs once its hooks are in ~/.claude/settings.json; see the README's Hooks section."
 
 echo
 echo "Done. Next, in each repo you build in, open Claude Code and run /setup-matt-pocock-skills once."

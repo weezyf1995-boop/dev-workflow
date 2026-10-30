@@ -10,6 +10,7 @@ Scale to the change. The **Always** block is short enough that there is no excus
 2. **What would this break that I haven't looked at?** Name the blast radius, or say why there isn't one.
 3. **Is the structure better, equal, or worse than I found it?** If worse anywhere, is the debt named with a reason?
 4. **If this fixes a bug, did a test reproduce it and fail before the fix?** If not, write it now. This applies on the light path; most bug fixes are light-path and this is where the rule would otherwise be skipped.
+5. **Did this add, remove or move a seam** — a place where behaviour can change without editing there (an injected dependency, a passed-in function, a config switch)? Added: name the two adapters that vary across it today; a test fake counts as one. With only one, it is a hypothetical seam (`codebase-design`), so inline it. Removed or moved: name every adapter that plugged in there, tests included, and say where each went. Neither: say "no seam change". This sits on the light path because a one-file change can hard-wire a dependency and quietly cost the next change its test seam. *(Amendment, owner's authority, 2026-10-22.)*
 
 ## Full-path changes
 

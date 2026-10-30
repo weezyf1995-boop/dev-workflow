@@ -10,11 +10,13 @@ Only the user can run these; you cannot invoke them. When a step needs one, stop
 
 You may invoke these yourself when the step calls for them: changeable-software, /tdd, /code-review, /diagnosing-bugs, /codebase-design, /domain-modeling, /prototype, /research.
 
+The relay: where a step below says relay, Claude writes the handoff file itself, in the /handoff skill's format (state, next step, suggested skills, references by path, never copies of specs or diffs), to the OS temp directory, then runs `~/.claude/scripts/relay.sh <absolute folder> "<prompt>"` and stops. On macOS that opens a new Code session in the Claude desktop app with the prompt typed in; you confirm the folder and presses Enter, because a deep link never sends on its own. Anywhere else relay.sh prints the prompt to paste. Relaying is never a way into a step that is yours to decide: grilling and architecture review still wait for you.
+
 ## Step 0: size and classify before anything else
 
 On any coding request, run changeable-software's path check and Cynefin classification first. The answer picks the route:
 
-- Light path (about one file, no new boundary, one-commit revert, no frozen core): skip the flow entirely. Make the change, run feedback, run the checklist's "Always" block. Nobody grills a typo.
+- Light path (about one file, no new boundary, one-commit revert, no frozen core, nothing touching money, auth or stored data): skip the flow entirely. Make the change, run feedback, run the checklist's "Always" block. Nobody grills a typo.
 - Chaotic (broken right now): /diagnosing-bugs. Stabilise, then understand.
 - Clear: main flow, no prototype detour.
 - Complicated (a knowledge gap): /research first, then main flow at /grill-with-docs.
@@ -28,13 +30,14 @@ Name any frozen core or sealed measure here. Either one forces the full path reg
 
 0. Once per repo: /setup-matt-pocock-skills.
 1. /grill-with-docs (no repo: /grill-me). changeable-software step 2 lands here: every concept gets exactly one name, recorded in CONTEXT.md through /domain-modeling.
-2. Detour when a question needs running code: /handoff out, /prototype in a fresh session (mark it `# DISPOSABLE: <why>, <until>`), /handoff back.
-3. Before splitting the work, changeable-software steps 3 and 4: write the interfaces first using /codebase-design vocabulary, say where the complexity went and who pays, and make the first ticket the thinnest end-to-end tracer bullet.
+2. Detour when a question needs running code: Claude runs /prototype in a worktree subagent (Agent tool, `isolation: "worktree"`), briefed with the question and the files it needs, never the conversation. The code is marked `# DISPOSABLE: <why>, <until>`. The subagent reports the answer in under 300 words, and the answer, not the code, comes back into the grilling. Keep the branch only if the answer points at it.
+3. Before splitting the work, changeable-software steps 3 and 4: write the interfaces first using /codebase-design vocabulary, say where the complexity went and who pays, and make the first ticket the thinnest end-to-end tracer bullet. On the full path, when a new or changed interface sits in front of a frozen core or will have two or more callers, run codebase-design's DESIGN-IT-TWICE (parallel sub-agents, radically different interfaces, compared on depth, locality and seam placement) before settling the shape. Skip it otherwise: it costs several agents.
 4. Multi-session build: /to-spec, /to-tickets, then the wave plan (see Waves), then /implement on that plan. Single session: /implement right here.
+   Model by phase: steps 1 to 4 up to and including the wave plan run on Fable. Before the first builder, relay (see "Who can fire what"): the handoff names the wave plan, the rules block and the base commit, and the prompt is `/implement <handoff path>`. New Code sessions start on Opus (`"model": "opus"` in ~/.claude/settings.json), so the build opens on Opus with no switch. The Fable session stops once the relay has opened. The coordinating session, /tdd and /code-review run on Opus. Builder and reviewer subagents take their model from the risk rule under "Building tickets". Never start a builder on Fable.
 5. Inside /implement: name the feedback loop out loud (changeable-software step 5), then /tdd drives the slices. TDD is the tool, not a law. If a slice can't honestly be test-first, say so instead of faking it.
-6. Before committing: /code-review, passing changeable-software's `references/review-checklist.md` to the Standards sub-agent as a standards source (local install: `~/.claude/skills/changeable-software/`; anywhere else: `find ~/.claude -path "*changeable-software/references/review-checklist.md"`). It lives outside the repo, so /code-review will not find it unprompted. Then answer: what did we improve before leaving?
+6. Before committing: /code-review, passing changeable-software's `references/review-checklist.md` to the Standards sub-agent as a standards source (local: `~/.claude/skills/changeable-software/`; cloud: `find ~/.claude/skills/synced -path "*changeable-software/references/review-checklist.md"`). Pass codebase-design's `SKILL.md` as a second standards source (`find ~/.claude ~/.agents -path "*codebase-design/SKILL.md" | head -1`), so the Standards sub-agent runs the deletion test and the adapter rule on every seam in the diff. Both live outside the repo, so /code-review will not find them unprompted. Then answer: what did we improve before leaving?
 
-Context hygiene: keep steps 1 to 4 in one window until /to-tickets is done. Nearing ~150k tokens before then, /compact at the nearest phase boundary.
+Context hygiene: keep steps 1 to 4 in one window until /to-tickets is done. Past ~200k tokens before then, /compact at the nearest phase boundary. The context guard says when (see Context budget).
 
 A repo may carry its own ticket loop (for example `docs/agents/ticket-workflow.md`). It can reshape steps 4 to 6 for that repo (who builds, which models, extra checks such as screenshots). It never removes step 0, the ticket as the spec, /code-review with the changeable-software checklist, or the cloud rules. Where it contradicts those, this file wins and the conflict is noted in the ticket's report.
 
@@ -44,10 +47,11 @@ Right after /to-tickets publishes and before /implement, write the wave plan wit
 
 1. Layer by blocking edges. Wave 1 is every ticket with no blockers. Wave N is every ticket whose blockers all sit in earlier waves. A cycle means /to-tickets got an edge wrong: stop and show it to the user.
 2. No edge doesn't mean safe in parallel. For each ticket, estimate the areas it will touch: modules, schema and migrations, shared types, config, route tables, lockfiles, CONTEXT.md. Two tickets in one wave that share an area can't build at once, so the later-numbered one drops to the next wave. Unsure counts as shared. Expand–contract migrate batches split by directory are built to run together and stay in one wave.
-3. Show the plan as one table: wave, ticket, blocked by, areas touched, builder model (risk rule under "Building tickets"). Under it, name the critical path: the longest chain of blocking edges. That chain is the floor on build time however many builders run, so a long one is a reason to revisit the breakdown, not to add builders.
-4. The user types /implement once against the plan. Before the first builder, check `.claude/worktrees/` is in `.gitignore`; if not, add it and commit that alone. Each ticket gets a fresh worktree subagent (Agent tool, `isolation: "worktree"`) running the loop in "Building tickets". That replaces /clear between tickets on every machine, not only in the cloud. At most three builders at once unless the user sets another number.
-5. Dispatch by frontier, not by wave. A ticket starts the moment its own blockers have landed, without waiting for the rest of its wave. The waves are the plan the user reads; the frontier is what runs.
-6. Builds run in parallel; landing doesn't. Land one ticket at a time in finish order: rebase onto main, full suite on the integrated result, merge. A conflict while landing means step 2 missed a shared area: resolve it and name the miss in that ticket's report.
+3. Show the plan as one table: wave, ticket, blocked by, areas touched, builder model (risk rule under "Building tickets"). Under it, name the critical path: the longest chain of blocking edges. That chain is the floor on build time however many builders run, so a long one is a reason to revisit the breakdown, not to add builders. When a ticket drops a wave for a shared area, say which area in a line under the table.
+   Under that, write "Rules that hold for every ticket": the CONTEXT.md terms the build uses, the ADR shape tickets implement but don't redesign, the frozen cores no ticket moves, and what no ticket touches. Every builder brief carries this block. A ticket that finds itself breaking one of these rules has left the spec: it stops and says so.
+4. the user types /implement once against the plan. Before the first builder, check `.claude/worktrees/` is in `.gitignore`; if not, add it and commit that alone. Each ticket gets a fresh worktree subagent (Agent tool, `isolation: "worktree"`) running the loop in "Building tickets". That replaces /clear between tickets on every machine, not only in the cloud. At most three builders at once unless the user sets another number.
+5. Dispatch by frontier, not by wave. A ticket starts the moment its own blockers have landed and no running builder holds any of its areas, without waiting for the rest of its wave. Without the area check, a ticket dropped a wave in step 2 can still start beside the ticket it conflicts with. The waves are the plan the user reads; the frontier is what runs.
+6. Builds run in parallel; landing doesn't. Land one ticket at a time in finish order: rebase onto main, full suite on the integrated result, merge. Fix a conflict while landing with /resolving-merge-conflicts. If both sides came from this plan's tickets, step 2 missed a shared area: name the miss in that ticket's report. If main moved for other reasons, just say so.
 
 ## Building tickets: defaults for any repo
 
@@ -55,7 +59,7 @@ Learned building a production app. A repo's own loop can tighten these, not drop
 
 - Models by risk: opus when the ticket touches stored data, parsing, imports, exports, time zones, money or auth; sonnet for narrow UI and copy. The same rule picks the reviewer's model.
 - Mechanical checks are commands, not agents: the full test run, lint, screenshot or snapshot diffs. Spend a reviewer only on judgement.
-- The builder runs only the touched tests plus a compile or build, so reviewers never see broken code. Review runs on the diff. The coordinator runs the full suite once, after review and the fix round, on the frozen commit that will land. Nobody runs it twice.
+- The builder runs only the touched tests plus a compile or build, so reviewers never see broken code. Review runs on the diff. The coordinator runs the full suite once, after review and the fix round, on the frozen commit that will land. Run it once per landing candidate: a rebase or any content change makes a new candidate, which gets its own run.
 - Record the base commit before building. Before landing, fetch: if `main` moved, rebase and rerun the full suite on the integrated result. Never force-push over another session.
 - If the repo has screenshot or snapshot tests, any visual change the ticket didn't ask for is a fail. Add a screens review (both themes, every language the app ships, right-to-left if it ships one) only when screens changed.
 - Blocking findings and cheap, clearly worthwhile advisories go back to the same builder, which still has its context, in one round. Speculative polish is deferred in the report. Only what the fix touched is reviewed again. If a sonnet reviewer fails the same item twice, opus does the next fix and review.
@@ -64,6 +68,28 @@ Learned building a production app. A repo's own loop can tighten these, not drop
 - One commit per ticket, its message naming each reviewer, its model and its verdict.
 - Where the ticket leaves something open, follow the nearest precedent and record it as a Choice. Every Choice goes in the report; that is what makes building without check-ins allowed under changeable-software's unattended exception.
 - Report each ticket in plain words: what it does on screen or in behaviour, not the diff. Close the ticket with the tests run, each reviewer's verdict, and the Choices.
+
+## Context budget
+
+Every request re-reads the whole conversation, so usage scales with context size times the number of calls. Measured on the author's machine, Jul to Oct 2026: about 228k tokens per request, 97% of them cache reads, and subagents making half the calls. These rules keep the window small without breaking the cache. They sit on top of everything above and change no step.
+
+Runs on its own (local installs; hooks in `~/.claude/settings.json` call `~/.claude/scripts/context_guard.py`, alongside the hooks already there. The sync job keeps the scripts in step; the hook entries are set per machine):
+- Each prompt past 200k shows the user the size and the next move. Claude gets one note per tier telling it to steer to the next boundary. Past 200k the move is your /compact (only he can type it). Past 400k Claude relays at the next boundary instead of waiting for /handoff and /clear.
+- After any Bash output over 8,000 characters, Claude gets a note to filter at the source.
+- Resuming a session over 200k with a cold cache warns before the first request.
+- None of it blocks. Cloud sessions have no such hooks; the rules below still apply there.
+
+Claude does without being told:
+- One task per session. When a ticket or light-path change lands, say so and recommend /clear before the next one instead of taking it on in the same window.
+- Filter shell output at the source: `| tail -40`, `| grep`, quiet flags, test reporters that print failures and a summary. Never print a whole log, lockfile or build output.
+- Grep first, then read files by range once the location is known.
+- Never break the cache mid-session: no model switch (Fable to Opus happens by relay into a fresh session, main flow step 4), and no CLAUDE.md, template or settings edits in the middle of working sessions. Such edits land and get tested in a fresh session.
+- Subagent briefs carry the ticket, the files or diff, and the checklist, never the conversation. A reviewer works to a budget of about 60 tool calls; at the budget it stops and reports what it has. Builders and reviewers report in under 300 words.
+
+You do:
+- Weekly (schedule it with cron or launchd if you like): `python3 ~/.claude/scripts/context_report.py`. The report lists sessions by peak context, flags any past 200k, and shows the baseline before any work, the subagent share and the oversized outputs. It covers 7 days by default, or pass a number. Bring the output into a session and pick one rule to tighten; run it again after a heavy build.
+- If the baseline (the "first" column) grows, run /context in a fresh session of that repo and cut what loads on every request: CLAUDE.md length, imports, MCP servers the repo doesn't use (/mcp), and unused skills or plugins.
+- /context costs about 50k tokens: its full output is saved into the conversation and re-sent with every later request. Read it, then /clear. Never run it mid-task in a session you mean to keep.
 
 ## One home for each thing
 
@@ -74,19 +100,19 @@ Learned building a production app. A repo's own loop can tighten these, not drop
 
 ## Upkeep
 
-/improve-codebase-architecture, pick one candidate, take it into /grill-with-docs, design it on /codebase-design. A bug that comes back twice is an architecture question, not another patch; /diagnosing-bugs post-mortems feed the same route.
+/improve-codebase-architecture, pick one candidate, take it into /grill-with-docs, design it on /codebase-design. Alongside it, run the context report (see Context budget) and tighten one rule if it flags something. A bug that comes back twice is an architecture question, not another patch; /diagnosing-bugs post-mortems feed the same route.
 
 ## Any time
 
-/research, /prototype, /tdd, /code-review, /wizard (steps only a human can do), /to-questionnaire, /wait-what, /teach, /writing-for-agents, /domain-modeling.
+/research, /prototype, /tdd, /code-review, /resolving-merge-conflicts, /wizard (steps only a human can do), /to-questionnaire, /wait-what, /teach, /writing-for-agents, /domain-modeling.
 
-Past the commit, where the Pocock flow stops: shipping-and-launch, observability-and-instrumentation, security-and-hardening, deprecation-and-migration, ci-cd-and-automation, performance-optimization. Model-invoked; reach for them when the work is deploying, instrumenting, hardening or retiring something, not while building it.
+Past the commit, where the Pocock flow stops: shipping-and-launch, observability-and-instrumentation, security-and-hardening, deprecation-and-migration, ci-cd-and-automation, performance-optimization. Model-invoked; reach for them when the work is deploying, instrumenting, hardening or retiring something, not while building it. Install them locally and as account skills for cloud sessions.
 
 ## Cloud sessions
 
-Applies when the session runs in a disposable cloud container (Claude Code on the web), where your local ~/.claude/CLAUDE.md is not loaded. Everything above still holds; this adds the rules the container forces.
+Applies when the session runs in a disposable cloud container (Claude Code on the web), where your local ~/.claude isn't loaded and account skills appear under ~/.claude/skills/synced. Everything above still holds; this adds the rules the container forces.
 
-- The container is deleted after inactivity, and anything not pushed goes with it. Run a stop hook that checks the main checkout after every reply and re-prompts while it holds uncommitted, untracked or unpushed work. Work so it stays quiet.
+- The container is deleted after inactivity, and anything not pushed goes with it. A stop hook checks the main checkout after every reply and re-prompts while it holds uncommitted, untracked or unpushed work. Keep the hook. Work so it stays quiet.
 - Builders never work in the main checkout. Every /implement ticket, and any subagent that writes code, runs as a subagent with worktree isolation (Agent tool, `isolation: "worktree"`). One fresh subagent per ticket is the cloud form of "/clear between tickets".
 - Before the first builder, check `.claude/worktrees/` is in the repo's `.gitignore`. If it isn't, add it and commit that alone, or the worktrees show up as untracked and trip the hook.
 - The main checkout only ever receives a reviewed commit: builder finishes, /code-review passes, merge to main, push, all in the same reply. Never end a reply with the main checkout dirty.

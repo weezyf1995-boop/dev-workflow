@@ -11,6 +11,7 @@ The full walkthrough is in [docs/workflow-guide.md](docs/workflow-guide.md). Thi
 | `workflow/dev-workflow.md` | The workflow itself. Claude Code loads it into every session through an `@` import in `~/.claude/CLAUDE.md`. |
 | `skills/changeable-software/` | The standards layer: design laws, testing standard, review checklist, review mode. Original to this repo. |
 | `cloud/dev-workflow/SKILL.md` | The same workflow wrapped as a skill, for Claude Code on the web, where `~/.claude/CLAUDE.md` isn't loaded. |
+| `scripts/` | `context_guard.py` (hooks that warn as the context window grows), `context_report.py` (weekly report of where tokens went) and `relay.sh` (opens a fresh session with a handoff prompt typed in, for the model switch before a build and the 400k relaunch). |
 | `install.sh` | Installs everything below at user level, so every project gets it. |
 | `docs/workflow-guide.md` | The long-form explanation. |
 
@@ -53,6 +54,18 @@ Check it worked by running `/memory` in a session: `dev-workflow.md` should be i
 ## Other AI coding agents
 
 The skills travel; the glue is written for Claude Code. Pocock's and Osmani's skills are plain Markdown that Codex, Cursor and other agents can use (`npx skills add` installs them for any supported agent through `-a <agent>`), and changeable-software is the same. The workflow file leans on Claude Code features: the `@` import in `CLAUDE.md`, subagents in git worktrees for parallel tickets, `/memory`, and the Opus and Sonnet model rule. On another agent, load `workflow/dev-workflow.md` the way that agent loads instructions (`AGENTS.md`, for example) and expect to adapt those parts. `install.sh` targets Claude Code only.
+
+## Hooks
+
+The installer copies the context guard but doesn't touch your settings. To turn it on, add these to `hooks` in `~/.claude/settings.json`:
+
+```json
+"SessionStart":     [{ "matcher": "resume|fork", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
+"UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
+"PostToolUse":      [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }]
+```
+
+`relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to `"opus"` and the build session after a relay starts on Opus with no switch. Elsewhere, relay.sh prints the prompt to paste.
 
 ## Updating
 
