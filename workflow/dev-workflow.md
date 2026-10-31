@@ -118,3 +118,4 @@ Applies when the session runs in a disposable cloud container (Claude Code on th
 - The main checkout only ever receives a reviewed commit: builder finishes, /code-review passes, merge to main, push, all in the same reply. Never end a reply with the main checkout dirty.
 - Stopping mid-ticket: commit the work to the ticket's branch and push it, or write a /handoff file, commit and push it. Nothing important lives only in the container.
 - When the stop hook fires while a builder is still running in a worktree, something is wrong: the main checkout got touched. Find out what, don't just wait it out.
+- On the first coding reply, compare this skill's `Template sha256` line with `template.sha` at the dev-workflow repo root (https://raw.githubusercontent.com/weezyf1995-boop/dev-workflow/main/template.sha). If they differ, tell the user the cloud skill is behind the workflow file and carry on.
