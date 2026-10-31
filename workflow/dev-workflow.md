@@ -16,7 +16,7 @@ The relay: where a step below says relay, Claude writes the handoff file itself,
 
 On any coding request, run changeable-software's path check and Cynefin classification first. The answer picks the route:
 
-- Light path (about one file, no new boundary, one-commit revert), unless a hard disqualifier applies. changeable-software says: "If the change touches a frozen core (one list, defined in step 1) or an external boundary — an external API, or data you cannot regenerate — take the full path even if it is four lines. Size is not the risk; blast radius is." Otherwise skip the flow entirely. Make the change, run feedback, run the checklist's "Always" block. Nobody grills a typo.
+- Light path (about one file, no new boundary, one-commit revert), unless a hard disqualifier applies. changeable-software says: "If the change touches a frozen core (one list, defined in step 1) or an external boundary — an external API, or data you cannot regenerate — take the full path even if it is four lines. Size is not the risk; blast radius is." Otherwise skip the flow entirely. Make the change, run feedback, run the checklist's "Always" block. Nobody grills a typo. The step 1 in that quote is changeable-software's, and its frozen-core list includes money movement and authentication.
 - Chaotic (broken right now): /diagnosing-bugs. Stabilise, then understand.
 - Clear: main flow, no prototype detour.
 - Complicated (a knowledge gap): /research first, then main flow at /grill-with-docs.

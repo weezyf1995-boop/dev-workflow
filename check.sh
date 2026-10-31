@@ -28,15 +28,13 @@ TAIL_LINES=30
 LOG_DIR=$(mktemp -d "${TMPDIR:-/tmp}/check.XXXXXX") || exit 1
 trap 'rm -rf "$LOG_DIR"' EXIT
 
-# Glob expansion is sorted; LC_ALL=C makes that plain byte order everywhere.
-LC_ALL=C
-export LC_ALL
-
 pass=0
 fail=0
 failed=""
 
-for check in checks/*; do
+# Sort checks in plain byte order. LC_ALL=C applies only inside the subshell,
+# so the checks themselves run in the caller's locale.
+while IFS= read -r check; do
   [ -f "$check" ] || continue
   name=$(basename "$check")
   log="$LOG_DIR/$name.log"
@@ -55,7 +53,7 @@ for check in checks/*; do
     failed="$failed $name"
     printf 'FAIL  %s (exit %s)\n' "$name" "$status"
   fi
-done
+done < <(LC_ALL=C; printf '%s\n' checks/*)
 
 total=$((pass + fail))
 if [ "$total" -eq 0 ]; then

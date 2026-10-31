@@ -25,7 +25,7 @@ UPDATE=0
 case "${1:-}" in
   "") ;;
   --update) UPDATE=1 ;;
-  *) echo "Usage: bash install.sh [--update]"; exit 2 ;;
+  *) echo "Usage: bash install.sh [--update]" >&2; exit 2 ;;
 esac
 
 command -v npx >/dev/null || { echo "Node.js (npx) is required: https://nodejs.org"; exit 1; }

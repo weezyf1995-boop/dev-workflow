@@ -75,7 +75,7 @@ lock_commits() { awk '!/^#/ && NF == 3 { print $2, $3 }' "$1" | sort -u; }
 
 assert_restore() { # $1 run number: a default install, restored from install/skills.lock
   local r="run $1"
-  assert_calls "$1" "$REPO_LOCK"
+  assert_calls "$1" "$REPO_LOCK" --exact-lock
   check "$r: did not ask git for upstream commits" test ! -e "$WORK/git-calls-$1"
   check "$r: recorded what it installed in ~/.claude/skills-lock/skills.lock" \
     test "$(lock_commits "$C/skills-lock/skills.lock")" = "$(lock_commits "$REPO_LOCK")"

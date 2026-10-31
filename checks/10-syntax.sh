@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Syntax-check every .sh file with bash -n and every .py file by compiling it
+# Syntax-check every .sh file (and extensionless file with a shell shebang) with bash -n and every .py file by compiling it
 # in memory, so no __pycache__ is written. Covers tracked files and untracked
 # files that are not ignored. Prints each broken file and its error.
 
@@ -32,6 +32,20 @@ except (SyntaxError, ValueError) as e:
     sys.stdout.write("".join(traceback.format_exception_only(type(e), e)))
     sys.exit(1)' "$file" 2>&1); then
         echo "$file: python syntax error"
+        echo "$out"
+        broken=$((broken + 1))
+      fi
+      ;;
+    *.*) ;;
+    *)
+      # An extensionless file with a bash or sh shebang is a shell script too.
+      case "$(head -n 1 "$file" 2>/dev/null)" in
+        '#!'*bash*|'#!'*/sh|'#!'*' sh') ;;
+        *) continue ;;
+      esac
+      count=$((count + 1))
+      if ! out=$(bash -n "$file" 2>&1); then
+        echo "$file: bash syntax error"
         echo "$out"
         broken=$((broken + 1))
       fi
