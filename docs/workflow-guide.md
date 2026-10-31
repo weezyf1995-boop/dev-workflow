@@ -12,7 +12,7 @@ Before any work, Claude sizes the request and classifies it with changeable-soft
 
 | The request is | Route |
 | --- | --- |
-| Small, about one file, no new boundary, nothing touching money, auth or stored data (light path) | Make the change, run feedback, run the checklist. No flow. |
+| Small enough for the light path (the test and its hard disqualifiers are in the workflow's Step 0) | Make the change, run feedback, run the checklist. No flow. |
 | Chaotic: broken right now | `/diagnosing-bugs`. Stabilise, then understand. |
 | Clear | Main flow, no prototype detour. |
 | Complicated: a knowledge gap | `/research` first, then main flow at `/grill-with-docs`. |
