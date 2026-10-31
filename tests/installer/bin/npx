@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+# Stub npx for the installer test. It never touches the network.
+#
+# Each call writes one record file, $NPX_STUB_LOG/call-NNN, holding every
+# argument terminated by a NUL byte, so arguments stay separable even when they
+# contain spaces or newlines. calls.py reads these records back.
+#
+# Like the real `npx skills add ... -g`, it creates $HOME/.claude/skills/<name>
+# for every `--skill <name>` it is given, so the rest of the installer runs as
+# it would for a real user.
+
+set -u
+
+if [ -z "${NPX_STUB_LOG:-}" ] || [ ! -d "$NPX_STUB_LOG" ]; then
+  echo "npx stub: NPX_STUB_LOG must name an existing directory" >&2
+  exit 97
+fi
+
+n=$(ls "$NPX_STUB_LOG" | wc -l)
+record="$NPX_STUB_LOG/$(printf 'call-%03d' $((n + 1)))"
+: > "$record"
+for arg in "$@"; do
+  printf '%s\0' "$arg" >> "$record"
+done
+
+prev=""
+for arg in "$@"; do
+  if [ "$prev" = "--skill" ]; then
+    mkdir -p "$HOME/.claude/skills/$arg"
+    printf -- '---\nname: %s\ndescription: stub skill from the installer test\n---\n' "$arg" \
+      > "$HOME/.claude/skills/$arg/SKILL.md"
+  fi
+  prev="$arg"
+done
+exit 0
