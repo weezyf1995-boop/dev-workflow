@@ -1,0 +1,8 @@
+{
+  "session_id": "3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77.jsonl",
+  "cwd": "/Users/example/project",
+  "permission_mode": "default",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "Run the tests and fix whatever fails."
+}

@@ -1,0 +1,19 @@
+{
+  "session_id": "3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77.jsonl",
+  "cwd": "/Users/example/project",
+  "permission_mode": "default",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_input": {
+    "command": "npm test",
+    "description": "Run the test suite"
+  },
+  "tool_response": {
+    "stdout": "",
+    "stderr": "",
+    "interrupted": false,
+    "isImage": false
+  },
+  "tool_use_id": "toolu_01ABCDEFGHJKLMNPQRSTUVWX"
+}
