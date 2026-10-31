@@ -71,6 +71,10 @@ The installer copies the context guard but doesn't touch your settings. To turn 
 
 Re-run `bash install.sh`. It pulls the latest third-party skills and moves any old copy of this repo's files to `~/.claude/skills-backup/` before replacing it.
 
+## Contributing
+
+Run `./check.sh` at the repo root before you push. It prints one line per check and exits non-zero if any check fails. CI runs the same script on Ubuntu and macOS, and you add a new check by adding a file to `checks/`.
+
 ## Licence
 
 The files in this repo are MIT licensed: see [LICENSE](LICENSE). The skills the installer fetches carry their own licences in their own repos.
