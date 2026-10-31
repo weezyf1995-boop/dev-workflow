@@ -51,7 +51,7 @@ Right after /to-tickets publishes and before /implement, write the wave plan wit
    Under that, write "Rules that hold for every ticket": the CONTEXT.md terms the build uses, the ADR shape tickets implement but don't redesign, the frozen cores no ticket moves, and what no ticket touches. Every builder brief carries this block. A ticket that finds itself breaking one of these rules has left the spec: it stops and says so.
 4. the user types /implement once against the plan. Before the first builder, check `.claude/worktrees/` is in `.gitignore`; if not, add it and commit that alone. Each ticket gets a fresh worktree subagent (Agent tool, `isolation: "worktree"`) running the loop in "Building tickets". That replaces /clear between tickets on every machine, not only in the cloud. At most three builders at once unless the user sets another number.
 5. Dispatch by frontier, not by wave. A ticket starts the moment its own blockers have landed and no running builder holds any of its areas, without waiting for the rest of its wave. Without the area check, a ticket dropped a wave in step 2 can still start beside the ticket it conflicts with. The waves are the plan the user reads; the frontier is what runs.
-6. Builds run in parallel; landing doesn't. Land one ticket at a time in finish order: rebase onto main, full suite on the integrated result, merge. Fix a conflict while landing with /resolving-merge-conflicts. If both sides came from this plan's tickets, step 2 missed a shared area: name the miss in that ticket's report. If main moved for other reasons, just say so.
+6. Builds run in parallel; landing doesn't. Land one ticket at a time in finish order: rebase onto main, full suite on the integrated result, merge. Fix a conflict while landing by hand: read the commit or ticket behind each side, keep both intents where they fit, and run the full suite again. If both sides came from this plan's tickets, step 2 missed a shared area: name the miss in that ticket's report. If main moved for other reasons, just say so.
 
 ## Building tickets: defaults for any repo
 
@@ -104,7 +104,7 @@ You do:
 
 ## Any time
 
-/research, /prototype, /tdd, /code-review, /resolving-merge-conflicts, /wizard (steps only a human can do), /to-questionnaire, /wait-what, /teach, /writing-for-agents, /domain-modeling.
+/research, /prototype, /tdd, /code-review, /wizard (steps only a human can do), /to-questionnaire, /wait-what, /teach, /writing-for-agents, /domain-modeling.
 
 Past the commit, where the Pocock flow stops: shipping-and-launch, observability-and-instrumentation, security-and-hardening, deprecation-and-migration, ci-cd-and-automation, performance-optimization. Model-invoked; reach for them when the work is deploying, instrumenting, hardening or retiring something, not while building it. Install them locally and as account skills for cloud sessions.
 
