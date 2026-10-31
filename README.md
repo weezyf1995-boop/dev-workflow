@@ -14,17 +14,18 @@ The full walkthrough is in [docs/workflow-guide.md](docs/workflow-guide.md). Thi
 | `template.sha` | The first 12 hex characters of the sha256 of `workflow/dev-workflow.md`. `scripts/build_cloud_skill.sh` writes it, and a cloud session compares it with the skill's `Template sha256` line to spot a stale skill. |
 | `scripts/` | `context_guard.py` (hooks that warn as the context window grows), `context_report.py` (weekly report of where tokens went) and `relay.sh` (opens a fresh session with a handoff prompt typed in, for the model switch before a build and the 400k relaunch). |
 | `install.sh` | Installs everything below at user level, so every project gets it. |
+| `install/skills.lock` | The upstream commit of each third-party skill that the workflow was last checked against. `install.sh` installs these commits. |
 | `docs/workflow-guide.md` | The long-form explanation. |
 
 ## Credits
 
-Nothing from the projects below is copied into this repo. The installer fetches each one from its own source, so the authors' current versions and licences apply.
+Nothing from the projects below is copied into this repo. The installer fetches each one from its own source, at the commit recorded in [install/skills.lock](install/skills.lock), and the authors' licences apply.
 
 | Project | Author | Licence | What it supplies |
 | --- | --- | --- | --- |
-| [mattpocock/skills](https://github.com/mattpocock/skills) | [Matt Pocock](https://www.aihero.dev) | MIT | The whole sequence: `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`, `/tdd`, `/code-review`, `/triage`, `/wayfinder`, `/domain-modeling`, `/codebase-design` and the rest. Built against v1.2.3. |
+| [mattpocock/skills](https://github.com/mattpocock/skills) | [Matt Pocock](https://www.aihero.dev) | MIT | The whole sequence: `/grill-with-docs`, `/to-spec`, `/to-tickets`, `/implement`, `/tdd`, `/code-review`, `/triage`, `/wayfinder`, `/domain-modeling`, `/codebase-design` and the rest. The commit in use is in [install/skills.lock](install/skills.lock). |
 | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) | [Addy Osmani](https://github.com/addyosmani), with Federico Bartoli and Joan León | MIT | Six skills for after the commit: `shipping-and-launch`, `observability-and-instrumentation`, `security-and-hardening`, `deprecation-and-migration`, `ci-cd-and-automation`, `performance-optimization`. |
-| [vercel-labs/skills](https://github.com/vercel-labs/skills) | Vercel | see repo | The `npx skills` installer that `install.sh` uses. |
+| [vercel-labs/skills](https://github.com/vercel-labs/skills) | Vercel | see repo | The `npx skills` installer that `install.sh` uses, pinned to one version in `install.sh`. |
 
 `changeable-software` has no upstream repo. I wrote it here, as a distillation of these sources, which are credited inside the skill too:
 
@@ -70,7 +71,19 @@ The installer copies the context guard but doesn't touch your settings. To turn 
 
 ## Updating
 
-Re-run `bash install.sh`. It pulls the latest third-party skills and moves any old copy of this repo's files to `~/.claude/skills-backup/` before replacing it.
+Pull this repo and re-run `bash install.sh`. It moves any old copy of this repo's files to `~/.claude/skills-backup/` before replacing it.
+
+The third-party skills do not drift between installs. `install.sh` runs one pinned version of the `skills` CLI (`SKILLS_VERSION` at the top of the script), and it installs each skill at the upstream commit listed in [install/skills.lock](install/skills.lock). That file is what the workflow was last checked against, so two installs weeks apart get the same skills. After each install, `~/.claude/skills-lock/` holds `skills.lock`, the commits that install used, and `skills-cli-lock.json`, a copy of the CLI's own lockfile. The installer prints `skills.lock` at the end of step 3.
+
+To move to newer third-party skills on purpose, run:
+
+```bash
+bash install.sh --update
+```
+
+It skips the lockfile, asks GitHub for the current commit of each upstream repo, installs the skills at those commits with the same pinned CLI, and writes a fresh `install/skills.lock`. Try the new skills, then commit the file. Everyone who installs after that gets the same commits. `--update` needs git as well as Node.js.
+
+To move to a newer `skills` CLI, change `SKILLS_VERSION` in `install.sh`, run `bash install.sh --update` and `./check.sh`, and commit both files.
 
 ## Contributing
 

@@ -5,9 +5,12 @@
 # argument terminated by a NUL byte, so arguments stay separable even when they
 # contain spaces or newlines. calls.py reads these records back.
 #
-# Like the real `npx skills add ... -g`, it creates $HOME/.claude/skills/<name>
-# for every `--skill <name>` it is given, so the rest of the installer runs as
-# it would for a real user.
+# Like the real `npx skills@<version> add <owner/repo>#<commit> ... -g`, it
+# creates $HOME/.claude/skills/<name> for every `--skill <name>` it is given,
+# and records each skill in the CLI's global lockfile,
+# $HOME/.agents/.skill-lock.json (or $XDG_STATE_HOME/skills/.skill-lock.json),
+# with the fields the real CLI writes there. So the rest of the installer runs
+# as it would for a real user.
 
 set -u
 
@@ -23,13 +26,55 @@ for arg in "$@"; do
   printf '%s\0' "$arg" >> "$record"
 done
 
+source=""
+skills=""
 prev=""
 for arg in "$@"; do
-  if [ "$prev" = "--skill" ]; then
+  if [ "$prev" = "add" ]; then
+    source="$arg"
+  elif [ "$prev" = "--skill" ]; then
+    skills="$skills $arg"
     mkdir -p "$HOME/.claude/skills/$arg"
     printf -- '---\nname: %s\ndescription: stub skill from the installer test\n---\n' "$arg" \
       > "$HOME/.claude/skills/$arg/SKILL.md"
   fi
   prev="$arg"
 done
-exit 0
+
+[ -n "$source" ] && [ -n "$skills" ] || exit 0
+
+if [ -n "${XDG_STATE_HOME:-}" ]; then
+  lock="$XDG_STATE_HOME/skills/.skill-lock.json"
+else
+  lock="$HOME/.agents/.skill-lock.json"
+fi
+mkdir -p "$(dirname "$lock")"
+# shellcheck disable=SC2086 # skill names hold no spaces; split them into arguments
+python3 -I - "$lock" "$source" $skills <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+
+lock, source, skills = sys.argv[1], sys.argv[2], sys.argv[3:]
+repo, _, ref = source.partition("#")
+data = {"version": 3, "skills": {}, "dismissed": {}}
+if os.path.exists(lock):
+    with open(lock) as f:
+        data = json.load(f)
+now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
+for name in skills:
+    old = data["skills"].get(name, {})
+    entry = {
+        "source": repo,
+        "sourceType": "github",
+        "sourceUrl": "https://github.com/%s.git" % repo,
+        "skillPath": "skills/%s/SKILL.md" % name,
+        "skillFolderHash": "0" * 40,
+        "installedAt": old.get("installedAt", now),
+        "updatedAt": now,
+    }
+    if ref:
+        entry["ref"] = ref
+    data["skills"][name] = entry
+with open(lock, "w") as f:
+    json.dump(data, f, indent=2)
+PY

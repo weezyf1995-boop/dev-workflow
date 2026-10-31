@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Stub git for the installer test. It never touches the network.
+#
+# install.sh --update runs `git ls-remote <url> HEAD` for each upstream repo.
+# This stub answers with $GIT_STUB_HEAD as that repo's commit and appends the
+# URL to $GIT_STUB_LOG. Any other git call fails with 97, and so does any call
+# while GIT_STUB_HEAD is unset: a default install must not look upstream.
+
+set -u
+
+if [ -z "${GIT_STUB_HEAD:-}" ]; then
+  echo "git stub: called without GIT_STUB_HEAD: git $*" >&2
+  exit 97
+fi
+if [ "$#" -ne 3 ] || [ "$1" != "ls-remote" ] || [ "$3" != "HEAD" ]; then
+  echo "git stub: unexpected call: git $*" >&2
+  exit 97
+fi
+if [ -n "${GIT_STUB_LOG:-}" ]; then
+  echo "$2" >> "$GIT_STUB_LOG"
+fi
+printf '%s\tHEAD\n' "$GIT_STUB_HEAD"
