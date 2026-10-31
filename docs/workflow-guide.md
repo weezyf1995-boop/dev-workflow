@@ -57,7 +57,7 @@ These defaults came from building a production app. A repo can tighten them with
 - **Commands for mechanical checks.** Tests, lint and snapshot diffs are commands; a reviewer agent is spent only on judgement.
 - **One full test run.** The builder runs only the touched tests plus a build. The coordinator runs the full suite once, on the commit that will land.
 - **One fix round.** Blocking findings go back to the same builder, which still has its context. Speculative polish is deferred to the report.
-- **No waiting on you.** Gaps in a ticket are settled by the nearest precedent and recorded as Choices in its report.
+- **No waiting on you.** Gaps in a ticket are settled by the nearest precedent and recorded as Choices in its report. A ticket that turns out to be wrong is different: the builder stops and reports. It may continue only when all three hold: the revision is reversible by configuration or a single revert, nothing has run for real, and the pending ruling is listed at the top of the report.
 - **One commit per ticket**, its message naming each reviewer, its model and its verdict. The report says what changed in plain words, not as a diff.
 
 ## Keeping context small
