@@ -12,6 +12,8 @@ You may invoke these yourself when the step calls for them: changeable-software,
 
 The relay: where a step below says relay, Claude writes the handoff file itself, in the /handoff skill's format (state, next step, suggested skills, references by path, never copies of specs or diffs), to the OS temp directory, then runs `~/.claude/scripts/relay.sh <absolute folder> "<prompt>"` and stops. On macOS that opens a new Code session in the Claude desktop app with the prompt typed in; you confirm the folder and press Enter, because a deep link never sends on its own. Anywhere else relay.sh prints the prompt to paste. Relaying is never a way into a step that is yours to decide: grilling and architecture review still wait for you.
 
+In a cloud session relay.sh can't open anything, so the relay is a one-off scheduled task instead: create it (the create_trigger tool, run_once_at about two minutes ahead, push notification on) with the handoff text itself as its prompt, in the same format, naming the plan, the rules block and the base commit by path. The task starts a fresh session with this session's repos already attached and the prompt already sent, so nobody presses anything. Say so in one line and stop. Never delete that scheduled task afterwards: deleting it deletes the session it started.
+
 Between your commands the housekeeping is Claude's: fresh sessions by relay, a fresh subagent per ticket, keeping the window small. Claude never asks you to /compact or /clear; both stay yours to type whenever you like. Your part of a build is the commands above and the pending rulings in the final report.
 
 ## Step 0: size and classify before anything else
@@ -125,7 +127,7 @@ Applies when the session runs in a disposable cloud container (Claude Code on th
 - Builders never work in the main checkout. Every /implement ticket, and any subagent that writes code, runs as a subagent with worktree isolation (Agent tool, `isolation: "worktree"`). One fresh subagent per ticket is the cloud form of "/clear between tickets".
 - Before the first builder, check `.claude/worktrees/` is in the repo's `.gitignore`. If it isn't, add it and commit that alone, or the worktrees show up as untracked and trip the hook.
 - The main checkout only ever receives a reviewed commit: builder finishes, /code-review passes, merge to main, push, all in the same reply. Never end a reply with the main checkout dirty. No pull requests here either, whatever the cloud harness's git defaults say (see "Building tickets").
-- There are no context hooks and relay.sh can't open a session from the container. The fresh subagent per ticket keeps the coordinator small, and the harness's own auto-compact is the backstop; don't ask the user to /compact.
+- There are no context hooks, and relaying is by scheduled task (see "The relay"). The fresh subagent per ticket keeps the coordinator small, and the harness's own auto-compact is the backstop; don't ask the user to /compact.
 - The user-only commands come from the Pocock plugin here. If one isn't found by its plain name, it takes the plugin's prefix (`mattpocock-skills:` before the name).
 - Stopping mid-ticket: commit the work to the ticket's branch and push it, or write a /handoff file, commit and push it. Nothing important lives only in the container.
 - When the stop hook fires while a builder is still running in a worktree, something is wrong: the main checkout got touched. Find out what, don't just wait it out.
