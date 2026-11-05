@@ -32,10 +32,10 @@ Commands in bold are ones only you can start; Claude stops and names them when t
 4. Interfaces first. Before the work is split, Claude writes the interfaces, says where the complexity went and who pays for it, and makes the first ticket the thinnest end-to-end slice. An interface with two or more callers, or one in front of a frozen core, gets designed twice by parallel subagents before the shape is settled.
 5. **/to-spec**, then **/to-tickets**. Tickets are vertical slices, each listing the tickets that block it.
 6. The wave plan, which Claude writes without being asked (next section).
-7. **/implement**, once, against the plan. Planning (steps 2 to 6) runs on a cheaper model; the build runs on Opus. Claude hands over by relay: it writes a handoff file and opens a fresh session with `/implement <handoff>` typed in, so you press Enter rather than switching models mid-session. In each ticket Claude names its feedback loop and works test-first with /tdd where that honestly fits.
+7. **/implement**, once, against the plan. It runs every wave to the end without stopping to ask; a ticket that needs your ruling parks and the rest carry on, and the final report opens with the rulings. Planning and the build share one Opus session at high effort, so nothing switches models in between; builders are subagents on Opus or Sonnet at medium effort, with Fable at high effort as the fallback only when Opus fails a ticket twice. In each ticket Claude names its feedback loop and works test-first with /tdd where that honestly fits.
 8. /code-review before every commit, with changeable-software's review checklist and codebase-design as the standards sources. Claude runs this itself; it's an instruction, not an enforced gate.
 
-Keep steps 2 to 5 in one session. Past 200k tokens, compact at the next step boundary; past 400k, Claude relays to a fresh session at the next boundary.
+Keep steps 2 to 5 in one session where it fits. Past 200k tokens, Claude relays to a fresh session at the next phase boundary; past 400k, at the next boundary of any kind. You never have to /compact or /clear: on a Mac a relay leaves you only Enter to press. Several specs can be ticketed before one /implement; Claude plans their tickets together and keeps specs that touch the same area from building at once.
 
 ## Waves: tickets in parallel
 
@@ -53,7 +53,8 @@ After /to-tickets, Claude groups the tickets into waves so independent ones buil
 
 These defaults came from building a production app. A repo can tighten them with its own ticket loop, but can't drop them.
 
-- **Model by risk.** Opus for anything touching stored data, parsing, imports, exports, time zones, money or auth; Sonnet for narrow UI and copy. The same rule picks the reviewer.
+- **Model by risk.** Opus at medium effort for anything touching stored data, parsing, imports, exports, time zones, money or auth; Sonnet at medium effort for narrow UI and copy and for every other helper subagent. The same rule picks the reviewer. Two failed Sonnet rounds hand the ticket to Opus; two failed Opus rounds hand it to Fable at high effort; a Fable failure parks it for you.
+- **No pull requests.** Tickets land by merging to main.
 - **Commands for mechanical checks.** Tests, lint and snapshot diffs are commands; a reviewer agent is spent only on judgement.
 - **One full test run.** The builder runs only the touched tests plus a build. The coordinator runs the full suite once, on the commit that will land.
 - **One fix round.** Blocking findings go back to the same builder, which still has its context. Speculative polish is deferred to the report.

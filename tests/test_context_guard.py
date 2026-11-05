@@ -127,20 +127,26 @@ class UserPromptSubmitTest(GuardTest):
         d["transcript_path"] = os.path.join(self.tmp, "missing.jsonl")
         self.assertEqual(self.run_guard(d)[:2], (0, ""))
 
-    def test_warn_tier_briefs_claude_once_per_session(self):
+    def test_warn_tier_relays_at_a_phase_boundary_once_per_session(self):
         for tokens in (WARN, (WARN + HIGH) // 2, HIGH - 1):
             with self.subTest(tokens=tokens):
                 session = f"warn-{tokens}"
                 first = self.run_json(self.prompt(tokens, session))
-                self.assertIn("/compact", first["systemMessage"])
-                self.assertNotIn("relay", first["systemMessage"])
+                self.assertIn("relays", first["systemMessage"])
+                self.assertIn("phase boundary", first["systemMessage"])
                 ctx = first["hookSpecificOutput"]
                 self.assertEqual(ctx["hookEventName"], "UserPromptSubmit")
-                self.assertIn("/compact", ctx["additionalContext"])
-                self.assertNotIn("relay.sh", ctx["additionalContext"])
+                self.assertIn("relay.sh", ctx["additionalContext"])
+                self.assertIn("never mid-grill or mid-ticket", ctx["additionalContext"])
 
                 second = self.run_json(self.prompt(tokens, session))
                 self.assertEqual(second, {"systemMessage": first["systemMessage"]})
+
+    def test_no_tier_asks_the_user_to_compact(self):
+        for tokens in (WARN, HIGH):
+            with self.subTest(tokens=tokens):
+                first = self.run_json(self.prompt(tokens, f"no-compact-{tokens}"))
+                self.assertNotIn("/compact", json.dumps(first))
 
     def test_high_tier_relays_once_per_session(self):
         for tokens in (HIGH, HIGH * 2):

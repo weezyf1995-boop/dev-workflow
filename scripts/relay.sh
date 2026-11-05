@@ -1,5 +1,5 @@
 #!/bin/bash
-# Hands work to a fresh Claude Code session: the Fable-to-Opus build start and the 400k relaunch.
+# Hands work to a fresh Claude Code session when the context guard calls for a relaunch at a boundary.
 # Rules live in ~/.claude/dev-workflow.md ("Who can fire what", step 4, "Context budget").
 # On macOS it opens a new Code session in the desktop app with the prompt typed in; the user confirms the
 # folder and presses Enter (a deep link never sends on its own). Anywhere else it prints what to paste.

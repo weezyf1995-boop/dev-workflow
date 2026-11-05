@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Context-budget hooks for the dev workflow.
 Rules live in ~/.claude/dev-workflow.md under "Context budget".
-Events: UserPromptSubmit (warn the user, brief Claude once per tier; past HIGH Claude relays via relay.sh), PostToolUse on Bash
+Events: UserPromptSubmit (tell the user, brief Claude once per tier; Claude relays via relay.sh at a phase boundary past
+WARN, at any boundary past HIGH), PostToolUse on Bash
 (nudge after oversized output), SessionStart on resume/fork (cold-cache warning).
 Never blocks anything. Any error exits 0 silently."""
 import json, os, sys
@@ -53,22 +54,24 @@ def main():
         ctx = last_context(d.get("transcript_path"))
         if ctx < WARN:
             done()
+        # Housekeeping is Claude's: both tiers end in a relay, never in asking the user to /compact.
+        # The tiers differ only in which boundary Claude waits for.
         tier = "high" if ctx >= HIGH else "warn"
         if tier == "high":
+            where = "the next boundary of any kind (a step, a ticket landing)"
             msg = f"Context {k(ctx)}, past the {k(HIGH)} line. Claude relays to a fresh session at the next boundary."
         else:
-            msg = f"Context {k(ctx)}. Finish this unit, then /compact at the next phase boundary, or /clear if the task is done."
+            where = ("the next phase boundary (spec published, tickets and wave plan written, "
+                     "an /implement run landed), never mid-grill or mid-ticket")
+            msg = f"Context {k(ctx)}. Claude relays to a fresh session at the next phase boundary."
         res = {"systemMessage": msg}
         os.makedirs(STATE, exist_ok=True)
         flag = os.path.join(STATE, f"ctx-{d.get('session_id')}-{tier}")
         if not os.path.exists(flag):
             open(flag, "w").close()
-            if tier == "high":
-                todo = ("At that boundary, relay: write a handoff file (the /handoff skill's format) to the OS temp "
-                        "directory, run ~/.claude/scripts/relay.sh <cwd> \"Continue from <handoff path>\", "
-                        "say so in one line, and stop.")
-            else:
-                todo = "When you reach it, tell the user to /compact, or /clear if the task is done."
+            todo = (f"At {where}, relay: write a handoff file (the /handoff skill's format) to the OS temp "
+                    "directory, run ~/.claude/scripts/relay.sh <cwd> \"Continue from <handoff path>\", "
+                    "say so in one line, and stop.")
             res["hookSpecificOutput"] = {
                 "hookEventName": "UserPromptSubmit",
                 "additionalContext": (
