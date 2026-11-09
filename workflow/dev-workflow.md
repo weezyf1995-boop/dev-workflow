@@ -30,17 +30,6 @@ On any coding request, run changeable-software's path check and Cynefin classifi
 
 Name any frozen core or sealed measure here. Either one forces the full path regardless of size.
 
-### Step 0 on the full path: the Loose Ends board
-
-On any full-path task (the loose-ends MCP server; claude.ai connector "Loose Ends"), the board comes next, before step 1 of the main flow:
-
-- Call read_board. Find the Feature for this work: match the Project by path or git remote, then the Feature by its branch field. If more than one fits, ask the user which; never guess.
-- If none fits, ask the user whether one exists under another name. Only when they say no, create it with add_feature (Stage idea, owner claude) and stop at the phase the Stage allows.
-- Refuse to write code unless the Feature's Stage is build and its Evidence holds the tickets. Say which Stage it is at and what moves it forward.
-- At every phase boundary and at session end, call update_feature with Stage, Next step, Owner and Evidence. Never set Stage shipped and never delete: those are the user's, and the server refuses them.
-- A question only the user can answer goes to post_decision (2–4 options, recommended first, tied to the Feature). At session start, call list_answered_decisions since the Feature's touchedAt and act on the answers.
-- The board for the user: https://vps-50ad87b9.tail22f450.ts.net:8445/ (tailnet).
-
 ## Main flow: idea to ship
 
 0. Once per repo: /setup-matt-pocock-skills.
