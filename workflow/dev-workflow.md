@@ -36,7 +36,7 @@ Name any frozen core or sealed measure here. Either one forces the full path reg
 1. /grill-with-docs (no repo: /grill-me). changeable-software step 2 lands here: every concept gets exactly one name, recorded in CONTEXT.md through /domain-modeling.
 2. Detour when a question needs running code: Claude runs /prototype in a worktree subagent (Agent tool, `isolation: "worktree"`), briefed with the question and the files it needs, never the conversation. The code is marked `# DISPOSABLE: <why>, <until>`. The subagent reports the answer in under 300 words, and the answer, not the code, comes back into the grilling. Keep the branch only if the answer points at it.
 3. Before splitting the work, changeable-software steps 3 and 4: write the interfaces first using /codebase-design vocabulary, say where the complexity went and who pays, and make the first ticket the thinnest end-to-end tracer bullet. On the full path, when a new or changed interface sits in front of a frozen core or will have two or more callers, run codebase-design's DESIGN-IT-TWICE (parallel sub-agents, radically different interfaces, compared on depth, locality and seam placement) before settling the shape. Skip it otherwise: it costs several agents.
-4. Multi-session build: /to-spec, /to-tickets, then the wave plan (see Waves), then /implement on that plan. Single session: /implement right here.
+4. Multi-session build: /to-spec, the spec check (see Spec check), /to-tickets, then the wave plan (see Waves), then /implement on that plan. Single session: /implement right here.
    Model by phase: the session runs on Opus at high effort from step 1 to the end of the build (new Code sessions start there: `"model": "opus"` in ~/.claude/settings.json, effort set to high). Planning, the wave plan, the coordinating session, /tdd and /code-review all run in it, so there is no model switch and no relay between planning and building. /implement follows in the same window unless it is past ~200k; then Claude relays first (see Context budget), with a handoff naming the wave plan, the rules block and the base commit, and the prompt `/implement <handoff path>`. Builder, reviewer and helper subagents take their model and effort from "Models" under "Building tickets". Fable never starts anything: it enters only as the fallback described there.
 5. Inside /implement: name the feedback loop out loud (changeable-software step 5), then /tdd drives the slices. TDD is the tool, not a law. If a slice can't honestly be test-first, say so instead of faking it.
 6. Before committing: /code-review, passing changeable-software's `references/review-checklist.md` to the Standards sub-agent as a standards source (local: `~/.claude/skills/changeable-software/`; cloud: `find ~/.claude/skills/synced -path "*changeable-software/references/review-checklist.md"`). Pass codebase-design's `SKILL.md` as a second standards source (`find ~/.claude ~/.agents -path "*codebase-design/SKILL.md" | head -1`), so the Standards sub-agent runs the deletion test and the adapter rule on every seam in the diff. Both live outside the repo, so /code-review will not find them unprompted. Then answer: what did we improve before leaving?
@@ -44,6 +44,20 @@ Name any frozen core or sealed measure here. Either one forces the full path reg
 Context hygiene: keep steps 1 to 4 in one window where it fits. Past ~200k tokens, Claude relays at the nearest phase boundary, never mid-grill: the earliest is once /to-spec has published, because the spec carries what the grill decided. The context guard says when (see Context budget).
 
 A repo may carry its own ticket loop (for example `docs/agents/ticket-workflow.md`). It can reshape steps 4 to 6 for that repo (who builds, which models, extra checks such as screenshots). It never removes step 0, the ticket as the spec, /code-review with the changeable-software checklist, or the cloud rules. Where it contradicts those, this file wins and the conflict is noted in the ticket's report.
+
+## Spec check: fresh eyes before tickets
+
+Right after /to-spec publishes and before /to-tickets, Claude runs the spec check without being asked. The session that wrote the spec can't review it, because it fills every gap from memory. A reader who has only the spec finds the gaps on paper, where a fix costs one edit, not in a builder halfway through a ticket. (Taken from Google's Elephant-Goldfish Model, cut down from its five stages to the two that catch what this flow otherwise misses.) If a relay happens at this boundary, the handoff names the spec check as the next step.
+
+1. Save the spec text to a file in the OS temp directory. Start two fresh subagents at once, as `subagent_type: "Explore"` (read-only, and it starts without any CLAUDE.md, so no workflow rule fills a gap the spec left), sonnet at medium effort. Each brief holds only the spec file's path, the repo path and its task: never the conversation, the grill, or a summary of either.
+   - Comprehension: restate in under 200 words what will be built, for whom, and what is out of scope. Then list every sentence that could honestly be read two ways.
+   - Readiness: check every file path, module, type, signature and CONTEXT.md term the spec names against the repo and docs/adr/. List what is missing, misnamed, or contradicts an ADR.
+2. Claude compares the restatement with what the grill decided. Every mismatch and every readiness gap is a finding, ranked Blocker (a builder would build the wrong thing or can't start), Major (a builder would have to guess) or Nit.
+3. A Blocker or Major that is only wording: Claude fixes the spec issue and says what changed. One that needs a decision the grill didn't make goes to the user, one question per finding, before /to-tickets. Nits are listed, not fixed.
+4. At most one re-check: if the spec changed, a fresh subagent reruns only the task whose findings changed it. Whatever it still finds goes to the user. No third round.
+5. Report in under ten lines: findings by rank, what changed, what waits on the user. Then name /to-tickets.
+
+Skip it on the light path and whenever /to-spec didn't run.
 
 ## Waves: tickets in parallel
 
@@ -65,7 +79,7 @@ Learned building a production app. A repo's own loop can tighten these, not drop
 
 - Models, passed as `model` and `effort` on every Agent call:
   - Builders by risk: opus at medium effort when the ticket touches stored data, parsing, imports, exports, time zones, money or auth; sonnet at medium effort for narrow UI and copy. The same rule picks the reviewer's model.
-  - Every other subagent (exploration, /research, /prototype, DESIGN-IT-TWICE drafts): sonnet at medium effort.
+  - Every other subagent (exploration, /research, /prototype, DESIGN-IT-TWICE drafts, the spec check): sonnet at medium effort.
   - Fable at high effort is the fallback, never a first choice. When opus has failed the same ticket twice in a row (two builds or fix rounds that each still leave a red suite or a blocking finding), a fresh fable subagent takes the next fix and its review, briefed with the ticket, the current diff, both failure reports and the rules block. If fable fails too, the ticket parks (see below).
 - Mechanical checks are commands, not agents: the full test run, lint, screenshot or snapshot diffs. Spend a reviewer only on judgement.
 - The builder runs only the touched tests plus a compile or build, so reviewers never see broken code. Review runs on the diff. The coordinator runs the full suite once, after review and the fix round, on the frozen commit that will land. Run it once per landing candidate: a rebase or any content change makes a new candidate, which gets its own run.
@@ -112,6 +126,8 @@ You do:
 ## Upkeep
 
 /improve-codebase-architecture, pick one candidate, take it into /grill-with-docs, design it on /codebase-design. Alongside it, run the context report (see Context budget) and tighten one rule if it flags something. A bug that comes back twice is an architecture question, not another patch; /diagnosing-bugs post-mortems feed the same route.
+
+Spec drift, in the same pass when the repo has specs: a fresh Explore subagent (sonnet, medium effort) gets the spec issues closed since the last pass and the current code, and lists each place where they now disagree, with the file and the spec line. Claude doesn't pick a side. Each disagreement goes to the user as a choice: the code is wrong (a bug, via /triage) or the spec went stale (a comment on the spec issue saying what changed and why).
 
 ## Any time
 
