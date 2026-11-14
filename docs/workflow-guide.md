@@ -53,9 +53,10 @@ After /to-tickets, Claude groups the tickets into waves so independent ones buil
 
 These defaults came from building a production app. A repo can tighten them with its own ticket loop, but can't drop them.
 
-- **Model by risk.** Opus at medium effort for anything touching stored data, parsing, imports, exports, time zones, money or auth; Sonnet at medium effort for narrow UI and copy and for every other helper subagent. The same rule picks the reviewer. Two failed Sonnet rounds hand the ticket to Opus; two failed Opus rounds hand it to Fable at high effort; a Fable failure parks it for you.
+- **Model by risk.** Opus at medium effort for anything touching stored data, parsing, imports, exports, time zones, money or auth; Sonnet at medium effort for narrow UI and copy and for every other helper subagent. The same rule picks the Standards reviewer; the Spec reviewer runs on Sonnet unless the ticket is in that risky list. Two failed Sonnet rounds hand the ticket to Opus; two failed Opus rounds hand it to Fable at high effort; a Fable failure parks it for you.
 - **No pull requests.** Tickets land by merging to main.
-- **Commands for mechanical checks.** Tests, lint and snapshot diffs are commands; a reviewer agent is spent only on judgement.
+- **Commands for mechanical checks.** Tests, lint and snapshot diffs are commands; a reviewer agent is spent only on judgement. Reviewers read the diff and never rerun the suite; the builder ran it and the coordinator runs it once on the landing commit.
+- **No fix round for polish.** A review with only advisories goes back to the builder only for type safety, a dependency cycle or a frozen-core boundary. Renames and helper moves become debt in the report. A fix with no new logic is re-checked by the coordinator reading its diff, not by a fresh reviewer.
 - **One full test run.** The builder runs only the touched tests plus a build. The coordinator runs the full suite once, on the commit that will land.
 - **One fix round.** Blocking findings go back to the same builder, which still has its context. Speculative polish is deferred to the report.
 - **No waiting on you.** Gaps in a ticket are settled by the nearest precedent and recorded as Choices in its report. A ticket that turns out to be wrong is different: the builder stops and reports. It may continue only when all three hold: the revision is reversible by configuration or a single revert, nothing has run for real, and the pending ruling is listed at the top of the report.
