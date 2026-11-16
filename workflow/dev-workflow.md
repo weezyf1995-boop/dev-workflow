@@ -133,6 +133,8 @@ Spec drift, in the same pass when the repo has specs: a fresh Explore subagent (
 
 /research, /prototype, /tdd, /code-review, /wizard (steps only a human can do), /to-questionnaire, /wait-what, /teach, /writing-for-agents, /domain-modeling.
 
+Library docs: use the `ctx7` CLI through the find-docs skill (`npx ctx7@latest library <name> "<query>"`, then `npx ctx7@latest docs <id> "<query>"`) before web search or training data, and whenever the user mentions ctx7 or Context7. This holds outside coding work too. CLI and skill only: never install the Context7 MCP server or plugin. Install the skill locally with `npx ctx7 setup` (CLI + Skills) and as an account skill for cloud sessions.
+
 Past the commit, where the Pocock flow stops: shipping-and-launch, observability-and-instrumentation, security-and-hardening, deprecation-and-migration, ci-cd-and-automation, performance-optimization. Model-invoked; reach for them when the work is deploying, instrumenting, hardening or retiring something, not while building it. Install them locally and as account skills for cloud sessions.
 
 ## Cloud sessions
