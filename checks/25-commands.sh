@@ -21,7 +21,7 @@ sys.dont_write_bytecode = True
 sys.path.insert(0, os.path.join("tests", "installer"))
 import calls  # noqa: E402  (shared install.sh parser)
 
-BUILT_IN = {"clear", "compact", "context", "mcp", "memory"}
+BUILT_IN = {"clear", "compact", "context", "loop", "mcp", "memory"}
 WORKFLOW = "workflow/dev-workflow.md"
 
 # Slash at a word start; the name must end there, not run on into a path.

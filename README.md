@@ -64,8 +64,11 @@ The installer copies the context guard but doesn't touch your settings. To turn 
 ```json
 "SessionStart":     [{ "matcher": "resume|fork", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
 "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
+"PreToolUse":       [{ "matcher": "Agent|Task", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
 "PostToolUse":      [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }]
 ```
+
+Past 400k tokens the guard stops the session taking new work: it refuses prompts other than `relay`, a housekeeping command (/clear, /compact, /handoff and the like) or one starting with `override`, and the PreToolUse entry stops new subagents. `override` lets the session run on for another 100k.
 
 `relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to `"opus"`, with effort high, and every session, including one opened by a relay, starts where the workflow wants it. Elsewhere, relay.sh prints the prompt to paste.
 

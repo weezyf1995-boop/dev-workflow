@@ -42,8 +42,9 @@ def read_constants(path, names):
     return found
 
 
-_C = read_constants(GUARD, ("WARN", "HIGH", "BIG_OUTPUT"))
+_C = read_constants(GUARD, ("WARN", "HIGH", "OVERRIDE_SPAN", "BIG_OUTPUT"))
 WARN, HIGH, BIG_OUTPUT = _C["WARN"], _C["HIGH"], _C["BIG_OUTPUT"]
+OVERRIDE_SPAN = _C["OVERRIDE_SPAN"]
 
 
 def load_payload(name):
@@ -138,6 +139,7 @@ class UserPromptSubmitTest(GuardTest):
                 self.assertEqual(ctx["hookEventName"], "UserPromptSubmit")
                 self.assertIn("relay.sh", ctx["additionalContext"])
                 self.assertIn("never mid-grill or mid-ticket", ctx["additionalContext"])
+                self.assertIn("task boundary", ctx["additionalContext"])
 
                 second = self.run_json(self.prompt(tokens, session))
                 self.assertEqual(second, {"systemMessage": first["systemMessage"]})
@@ -148,23 +150,61 @@ class UserPromptSubmitTest(GuardTest):
                 first = self.run_json(self.prompt(tokens, f"no-compact-{tokens}"))
                 self.assertNotIn("/compact", json.dumps(first))
 
-    def test_high_tier_relays_once_per_session(self):
+    def assert_blocked(self, out, tokens):
+        self.assertEqual(out["decision"], "block")
+        self.assertIn(f"{round(tokens / 1000)}k", out["reason"])
+        self.assertIn("relay", out["reason"])
+        self.assertIn("override", out["reason"])
+        self.assertNotIn("hookSpecificOutput", out)
+
+    def test_high_tier_blocks_a_plain_prompt_every_time(self):
         for tokens in (HIGH, HIGH * 2):
             with self.subTest(tokens=tokens):
                 session = f"high-{tokens}"
-                first = self.run_json(self.prompt(tokens, session))
-                self.assertIn("relays", first["systemMessage"])
-                ctx = first["hookSpecificOutput"]
-                self.assertEqual(ctx["hookEventName"], "UserPromptSubmit")
-                self.assertIn("relay.sh", ctx["additionalContext"])
+                self.assert_blocked(self.run_json(self.prompt(tokens, session)), tokens)
+                self.assert_blocked(self.run_json(self.prompt(tokens, session)), tokens)
 
-                second = self.run_json(self.prompt(tokens, session))
-                self.assertEqual(second, {"systemMessage": first["systemMessage"]})
+    def test_relay_prompt_passes_with_the_relay_instruction(self):
+        for text in ("relay", "Relay.", "relay now please"):
+            with self.subTest(text=text):
+                out = self.run_json(self.prompt(HIGH, f"relay-{text}", prompt=text))
+                self.assertNotIn("decision", out)
+                self.assertIn("relay.sh", out["hookSpecificOutput"]["additionalContext"])
+                self.assertIn("Do no other work first", out["hookSpecificOutput"]["additionalContext"])
 
-    def test_crossing_from_warn_to_high_sends_relay_instruction(self):
+    def test_a_word_merely_starting_with_relay_is_blocked(self):
+        self.assert_blocked(self.run_json(self.prompt(HIGH, "relayout", prompt="relayout the grid")), HIGH)
+
+    def test_housekeeping_commands_pass_and_work_commands_do_not(self):
+        for text in ("/clear", "/compact", "/compact keep the wave plan", "/handoff", "/mattpocock-skills:handoff", "/usage"):
+            with self.subTest(text=text):
+                self.assertEqual(self.run_guard(self.prompt(HIGH, "hk", prompt=text))[:2], (0, ""))
+        for text in ("/implement", "/to-tickets", "/loop 5m check the build"):
+            with self.subTest(text=text):
+                self.assert_blocked(self.run_json(self.prompt(HIGH, "work", prompt=text)), HIGH)
+
+    def test_override_runs_on_for_the_span_then_the_stop_returns(self):
+        first = self.run_json(self.prompt(HIGH, "ov", prompt="override, finish the landing"))
+        self.assertNotIn("decision", first)
+        self.assertIn(f"{round((HIGH + OVERRIDE_SPAN) / 1000)}k", first["systemMessage"])
+        self.assertIn("override", first["hookSpecificOutput"]["additionalContext"])
+
+        inside = self.run_json(self.prompt(HIGH + OVERRIDE_SPAN - 1, "ov"))
+        self.assertNotIn("decision", inside)
+        self.assertIn("relays", inside["systemMessage"])
+        self.assertIn("relay.sh", inside["hookSpecificOutput"]["additionalContext"])
+        again = self.run_json(self.prompt(HIGH + OVERRIDE_SPAN - 1, "ov"))
+        self.assertEqual(again, {"systemMessage": inside["systemMessage"]})
+
+        self.assert_blocked(self.run_json(self.prompt(HIGH + OVERRIDE_SPAN, "ov")), HIGH + OVERRIDE_SPAN)
+
+    def test_override_is_per_session(self):
+        self.run_json(self.prompt(HIGH, "ov-a", prompt="override"))
+        self.assert_blocked(self.run_json(self.prompt(HIGH, "ov-b")), HIGH)
+
+    def test_crossing_from_warn_to_high_stops(self):
         self.assertIn("hookSpecificOutput", self.run_json(self.prompt(WARN, "cross")))
-        high = self.run_json(self.prompt(HIGH, "cross"))
-        self.assertIn("relay.sh", high["hookSpecificOutput"]["additionalContext"])
+        self.assert_blocked(self.run_json(self.prompt(HIGH, "cross")), HIGH)
 
     def test_once_per_session_is_per_session(self):
         self.assertIn("hookSpecificOutput", self.run_json(self.prompt(WARN, "a")))
@@ -188,6 +228,41 @@ class UserPromptSubmitTest(GuardTest):
     def test_state_stays_in_temp_home(self):
         self.run_json(self.prompt(WARN, "s"))
         self.assertEqual(self.state_files(), ["ctx-s-warn"])
+
+
+class PreToolUseTest(GuardTest):
+    def payload(self, tokens, session="sess-1", **override):
+        d = load_payload("pre_tool_use_agent.json")
+        d["session_id"] = session
+        d["transcript_path"] = self.transcript(tokens, name=f"pre-{session}-{tokens}.jsonl")
+        d.update(override)
+        return d
+
+    def test_below_the_stop_is_silent(self):
+        for tokens in (WARN - 1, WARN, HIGH - 1):
+            with self.subTest(tokens=tokens):
+                self.assertEqual(self.run_guard(self.payload(tokens))[:2], (0, ""))
+
+    def test_past_the_stop_denies_new_subagents(self):
+        for tool in ("Agent", "Task"):
+            for tokens in (HIGH, HIGH * 2):
+                with self.subTest(tool=tool, tokens=tokens):
+                    out = self.run_json(self.payload(tokens, tool_name=tool))["hookSpecificOutput"]
+                    self.assertEqual(out["hookEventName"], "PreToolUse")
+                    self.assertEqual(out["permissionDecision"], "deny")
+                    self.assertIn("relay.sh", out["permissionDecisionReason"])
+
+    def test_other_tools_and_subagents_pass(self):
+        self.assertEqual(self.run_guard(self.payload(HIGH * 2, tool_name="Bash"))[:2], (0, ""))
+        self.assertEqual(self.run_guard(self.payload(HIGH * 2, agent_id="agent-7f3e"))[:2], (0, ""))
+
+    def test_override_lifts_the_subagent_stop_for_the_span(self):
+        d = load_payload("user_prompt_submit.json")
+        d.update(session_id="ov", prompt="override",
+                 transcript_path=self.transcript(HIGH, name="ov-prompt.jsonl"))
+        self.run_json(d)
+        self.assertEqual(self.run_guard(self.payload(HIGH + OVERRIDE_SPAN - 1, "ov"))[:2], (0, ""))
+        self.assertIn("hookSpecificOutput", self.run_json(self.payload(HIGH + OVERRIDE_SPAN, "ov")))
 
 
 class PostToolUseTest(GuardTest):

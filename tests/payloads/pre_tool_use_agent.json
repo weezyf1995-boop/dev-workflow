@@ -1,0 +1,15 @@
+{
+  "session_id": "3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77.jsonl",
+  "cwd": "/Users/example/project",
+  "permission_mode": "default",
+  "hook_event_name": "PreToolUse",
+  "tool_name": "Agent",
+  "tool_input": {
+    "description": "Build ticket WEE-12",
+    "prompt": "Build the ticket in the brief.",
+    "subagent_type": "general-purpose",
+    "isolation": "worktree"
+  },
+  "tool_use_id": "toolu_01ABC123"
+}
