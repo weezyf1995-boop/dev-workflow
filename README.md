@@ -93,7 +93,7 @@ One command checks whether the installed workflow still routes ten representativ
 python3 -B evals/run.py --out evals/results/latest.txt
 ```
 
-Each case in `evals/cases.json` runs three times, each in a fresh git copy of `evals/fixture/` (the copied `payments.py` gets its frozen-core marker at copy time, so no file in this repo carries one), through `claude -p` with JSON output and `--permission-mode acceptEdits`. A case is green when all three runs pass, flaky when one or two do, red when none do. The runner prints one line per case and a summary, and exits non-zero only when a case is red. Options: `--model` (by default none is passed, so your session default is used), `--case <name>`, `--out <file>`, `--jobs <n>`, `--replies <dir>`. Compare the result with the baseline in `evals/results/baseline.txt`.
+Each case in `evals/cases.json` runs three times, each in a fresh git copy of `evals/fixture/` (the copied `payments.py` gets its frozen-core marker at copy time, so no file in this repo carries one), through `claude -p` with JSON output and `--permission-mode acceptEdits`. A case is green when all three runs pass, flaky when one or two do, red when none do. The runner prints one line per case and a summary, and exits non-zero only when a case is red. Options: `--model` (by default none is passed, so your session default is used), `--case <name>`, `--out <file>`, `--jobs <n>`, `--timeout <seconds>` (per run, default 900), `--replies <dir>`. Compare the result with the baseline in `evals/results/baseline.txt`.
 
 The cases and the pass rule are sealed: change one only after recording the date and reason in `evals/REGISTER.md`. The evals cost model usage, so they stay out of `./check.sh` and CI; only the judge's tests run there.
 

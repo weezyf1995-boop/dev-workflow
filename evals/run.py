@@ -162,7 +162,10 @@ def main(argv=None):
     with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
         futures = {pool.submit(run_once, c, args.model, args.timeout): (c["name"], i) for c, i in jobs}
         for fut in concurrent.futures.as_completed(futures):
-            results[futures[fut]] = fut.result()
+            try:
+                results[futures[fut]] = fut.result()
+            except Exception as exc:  # one broken run must not lose the others
+                results[futures[fut]] = ("", ["runner error: %s" % exc])
 
     if args.replies:
         os.makedirs(args.replies, exist_ok=True)
