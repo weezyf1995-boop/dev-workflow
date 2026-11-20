@@ -103,6 +103,21 @@ By default Claude Code starts an isolated worktree from the repository's default
 
 Checked against Claude Code's settings reference (code.claude.com/docs/en/settings-reference, `worktree.baseRef`) and the worktrees page (code.claude.com/docs/en/worktrees). The values are `"fresh"` (the default, branches from `origin/<default-branch>`) and `"head"`; a branch name isn't accepted. The installer doesn't touch your settings.
 
+## Protecting main
+
+The workflow lands tickets by pushing to the default branch, so a mistaken force push or branch deletion would lose work. A GitHub ruleset makes GitHub itself refuse both, whichever machine or session the push comes from: a mechanism, not a tripwire. Add it to each repository you use the workflow in. It needs admin rights on the repository. Replace `OWNER/REPO` and run:
+
+```bash
+gh api --method POST repos/OWNER/REPO/rulesets --input - <<'EOF'
+{"name":"protect-main","target":"branch","enforcement":"active",
+ "conditions":{"ref_name":{"include":["~DEFAULT_BRANCH"],"exclude":[]}},
+ "rules":[{"type":"deletion"},{"type":"non_fast_forward"}],
+ "bypass_actors":[]}
+EOF
+```
+
+It targets the default branch, is active straight away, has two rules (block deletion, block non-fast-forward pushes) and no bypass actors. This repository carries the same ruleset. It was not tested by attempting a force push; check it with `gh api repos/OWNER/REPO/rulesets`.
+
 ## Routing evals
 
 One command checks whether the installed workflow still routes ten representative requests correctly. Run it after any edit to the workflow or the skill, on a machine where `install.sh` has been run and the Claude Code CLI is logged in:
@@ -122,7 +137,7 @@ Once the frozen tripwire is on, it denies the edit in the frozen-four-lines case
 - **Splitting the workflow into a router and an on-demand body.** It saves about six thousand cached tokens against a baseline of thirty to a hundred thousand, and it turns always-loaded rules for the unasked steps into an instruction to go and read them. Reopen only if the routing evals show failures that trace to the length of the instructions, or the weekly context report shows the always-on baseline as a top cost.
 - **Requiring a review trailer on commits before a push.** The workflow rebases on landing, so the trailer certifies a tree that no longer exists, and the agent that skipped the review also writes the trailer. The commit message still records each reviewer, model and verdict, as a record.
 - **Inspecting shell commands for edits to frozen files.** Matching commands by pattern both misses real edits and denies harmless reads. The tripwire covers the edit tools only, and the per-core mechanism covers the rest.
-- **A local hook on pushes.** The GitHub ruleset does the same job on every machine, and parsing shell commands for pushes was bypassed by ordinary command forms in testing.
+- **A local hook on pushes.** The [GitHub ruleset](#protecting-main) does the same job on every machine, and parsing shell commands for pushes was bypassed by ordinary command forms in testing.
 
 ## Updating
 
