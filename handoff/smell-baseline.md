@@ -1,0 +1,13 @@
+Smell baseline (Fowler, Refactoring ch.3). Each is a labelled judgement call, never a hard violation. A documented repo standard overrides it. Skip anything tooling enforces.
+- Mysterious Name: a name that doesn't reveal what it does or holds. -> rename.
+- Duplicated Code: the same logic shape in more than one hunk or file. -> extract and share.
+- Feature Envy: a method reaching into another object's data more than its own. -> move it.
+- Data Clumps: the same few fields or params travelling together. -> bundle into one type.
+- Primitive Obsession: a primitive standing in for a domain concept. -> give it a type.
+- Repeated Switches: the same switch/if-cascade on the same type recurring. -> polymorphism or one shared map.
+- Shotgun Surgery: one logical change forcing scattered edits across many files. -> gather what changes together.
+- Divergent Change: one file edited for several unrelated reasons. -> split.
+- Speculative Generality: abstraction or hooks for needs the spec doesn't have. -> delete.
+- Message Chains: long a.b().c().d() navigation. -> hide behind one method.
+- Middle Man: a function that mostly delegates onward. -> cut it.
+- Refused Bequest: a subclass ignoring most of what it inherits. -> use composition.
