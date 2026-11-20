@@ -1,6 +1,6 @@
 # The Laws of Changeable Software
 
-Synthesised from four sources: John Ousterhout on structure and complexity, Andrew Hunt and David Thomas on pragmatic practice, Matt Pocock on design in AI-assisted development, and Sandeep Swadia on systems thinking and decision-making in complex systems. A proposition became Law only where the sources agreed. That filter exists for one reason: to stop personal taste being promoted to universal law. It is not a proof — these are not independent authorities of equal weight, and their agreement is evidence rather than validation. Where a rule stops paying, drop it — and say why. Four tiers follow from the filter: **Law** where three or more sources agree; **Contested** where they split, in which case the deciding condition is stated rather than a verdict; **Advisory** where one source speaks; and **Amendment**, a rule ratified by the owner against or beyond the sources and cited as owner's authority — currently the three exceptions in Law 1 and the taxonomy in Law 13. Per-law source tallies are not recorded here; the tiers are asserted, not shown, and a reviewer should treat an untagged law's tier as claimed rather than proven.
+Synthesised from four sources: John Ousterhout on structure and complexity, Andrew Hunt and David Thomas on pragmatic practice, Matt Pocock on design in AI-assisted development, and Sandeep Swadia on systems thinking and decision-making in complex systems. A proposition became Law only where the sources agreed. That filter exists for one reason: to stop personal taste being promoted to universal law. It is not a proof — these are not independent authorities of equal weight, and their agreement is evidence rather than validation. Where a rule stops paying, drop it — and say why. Four tiers follow from the filter: **Law** where three or more sources agree; **Contested** where they split, in which case the deciding condition is stated rather than a verdict; **Advisory** where one source speaks; and **Amendment**, a rule ratified by the owner against or beyond the sources and cited as owner's authority — currently the three exceptions in Law 1 and the taxonomy in Law 13. Per-law source tallies are not recorded here; the tiers are asserted, not shown, and a reviewer should treat an untagged law's tier as claimed rather than proven. A law with no tier line is Law tier.
 
 ## Governing principle
 
@@ -108,6 +108,7 @@ This is the canonical list. `SKILL.md` and `review-mode.md` point here rather th
 ## The one-page constitution
 
 Build for the next change, not merely the present state.
+Freeze the rare core that must be correct rather than changeable.
 Treat complexity as a liability paid by future readers.
 Hide complexity behind deep, deliberate boundaries.
 Design the boundary; keep the interior replaceable.
@@ -119,5 +120,6 @@ Invest continuously in structure.
 Fix the structures that generate recurring failures.
 Never let a metric substitute for the thing it measures.
 Choose methods according to the kind of system you are in.
+When uncertain, prefer the change whose mistake is cheaper to undo.
 
 A good design is one that makes the next correct change cheaper, safer and easier to understand.

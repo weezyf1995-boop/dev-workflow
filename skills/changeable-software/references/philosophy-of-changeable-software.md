@@ -10,7 +10,9 @@
 
 *(Fifth revision, 2026-09-07: installed as `references/philosophy-of-changeable-software.md` inside the operating skill — still the reference edition, still non-governing. Pointers updated for the third bounded exception, the sealed measure, ratified 2026-09-05 in the operating edition; the body deliberately does not carry it. Edits by Claude Code on the VPS.)*
 
-***Edition note (2026-09-03, updated 2026-09-06):** this is the reference edition. The operating edition is the installed `changeable-software` skill (`/root/.claude/skills/changeable-software/`) — `SKILL.md` with `references/laws.md`, `testing-standard.md`, `review-checklist.md` and, since 2026-09-06, `review-mode.md`; since 2026-09-07 this file ships beside them as a non-governing reference. It now governs reviewing as well as building. Where this text and the installed skill disagree, the skill governs.*
+*(Sixth revision, 2026-11-20: question 6 of Section VII removed and the later questions renumbered; the machine-specific install path removed from the edition note. Edits by Claude.)*
+
+***Edition note (2026-09-03, updated 2026-09-06):** this is the reference edition. The operating edition is the installed `changeable-software` skill — `SKILL.md` with `references/laws.md`, `testing-standard.md`, `review-checklist.md` and, since 2026-09-06, `review-mode.md`; since 2026-09-07 this file ships beside them as a non-governing reference. It now governs reviewing as well as building. Where this text and the installed skill disagree, the skill governs.*
 
 ---
 
@@ -454,12 +456,11 @@ Before changing the system, ask:
 3. **What will the next change cost?** Where will change amplify?
 4. **Where did the complexity go, and who now pays for it?** And then: where should it live? What must be visible, and what can be hidden?
 5. **What belongs at the boundary?** What must the caller know?
-6. **Who pays for the complexity here, and who can say no to changes?**
-7. **What alternative design exists?** Have we actually considered a genuinely different structure?
-8. **What is the smallest useful step?** Can we learn something before committing to more?
-9. **What independent feedback will tell us whether we are wrong?** Compile, test, inspect, measure, prototype, ask a user, consult an expert, observe production.
-10. **What structural problem is generating today's problem?** Do not merely patch a recurring symptom.
-11. **What will we improve before we leave?** Never leave the structure strictly worse than you found it.
+6. **What alternative design exists?** Have we actually considered a genuinely different structure?
+7. **What is the smallest useful step?** Can we learn something before committing to more?
+8. **What independent feedback will tell us whether we are wrong?** Compile, test, inspect, measure, prototype, ask a user, consult an expert, observe production.
+9. **What structural problem is generating today's problem?** Do not merely patch a recurring symptom.
+10. **What will we improve before we leave?** Never leave the structure strictly worse than you found it.
 
 **Building and reviewing are the same doctrine addressed to different audiences.** *(Third revision.)* The operating edition splits them accordingly. `review-checklist.md` holds the questions you answer for yourself before declaring your own work done. `review-mode.md` holds the procedure for judging something that already exists — a pull request, an architecture, someone else's module, a pile of generated code — and it produces a report another person has to act on.
 
