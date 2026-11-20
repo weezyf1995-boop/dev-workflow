@@ -8,6 +8,7 @@
 # in lexical order, so the numeric prefix sets the sequence:
 #
 #   10       syntax checks
+#   11-19    repository hygiene checks
 #   20-29    document checks
 #   30-39    hook tests
 #   40-49    relay tests
