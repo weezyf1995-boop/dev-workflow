@@ -15,6 +15,7 @@ The full walkthrough is in [docs/workflow-guide.md](docs/workflow-guide.md). Thi
 | `scripts/` | `context_guard.py` (hooks that warn as the context window grows), `context_report.py` (weekly report of where tokens went) and `relay.sh` (opens a fresh session with a handoff prompt typed in, for relaunching a long session at a phase boundary). |
 | `install.sh` | Installs everything below at user level, so every project gets it. |
 | `install/skills.lock` | The upstream commit of each third-party skill that the workflow was last checked against. `install.sh` installs these commits. |
+| `evals/` | The routing evals: ten sealed cases, a fixture, the runner, its judge, the register of changes and the committed results. See [Routing evals](#routing-evals). |
 | `docs/workflow-guide.md` | The long-form explanation. |
 
 ## Credits
@@ -83,6 +84,20 @@ By default Claude Code starts an isolated worktree from the repository's default
 ```
 
 Checked against Claude Code's settings reference (code.claude.com/docs/en/settings-reference, `worktree.baseRef`) and the worktrees page (code.claude.com/docs/en/worktrees). The values are `"fresh"` (the default, branches from `origin/<default-branch>`) and `"head"`; a branch name isn't accepted. The installer doesn't touch your settings.
+
+## Routing evals
+
+One command checks whether the installed workflow still routes ten representative requests correctly. Run it after any edit to the workflow or the skill, on a machine where `install.sh` has been run and the Claude Code CLI is logged in:
+
+```bash
+python3 -B evals/run.py --out evals/results/latest.txt
+```
+
+Each case in `evals/cases.json` runs three times, each in a fresh git copy of `evals/fixture/` (the copied `payments.py` gets its frozen-core marker at copy time, so no file in this repo carries one), through `claude -p` with JSON output and `--permission-mode acceptEdits`. A case is green when all three runs pass, flaky when one or two do, red when none do. The runner prints one line per case and a summary, and exits non-zero only when a case is red. Options: `--model` (by default none is passed, so your session default is used), `--case <name>`, `--out <file>`, `--jobs <n>`, `--replies <dir>`. Compare the result with the baseline in `evals/results/baseline.txt`.
+
+The cases and the pass rule are sealed: change one only after recording the date and reason in `evals/REGISTER.md`. The evals cost model usage, so they stay out of `./check.sh` and CI; only the judge's tests run there.
+
+Once the frozen tripwire is on, it denies the edit in the frozen-four-lines case, so that case's "no edits" passes whatever the agent tried. It then relies on its two markers, "frozen" and "full path".
 
 ## Updating
 

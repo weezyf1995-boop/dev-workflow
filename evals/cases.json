@@ -1,0 +1,83 @@
+{
+  "sealed": "Sealed measure. Change a case, a marker or the pass rule only after adding an entry to evals/REGISTER.md with its date and reason, before the next run.",
+  "matching": "Case-insensitive substring match on the final reply. Every must_contain marker has to be present. must_not_contain holds command names only, each matched as the literal string, leading slash included. no_edits: no changed, new or deleted files in the fixture copy and no new commits.",
+  "pass_rule": {
+    "runs_per_case": 3,
+    "green": "all three runs pass",
+    "flaky": "one or two runs pass",
+    "red": "no run passes",
+    "exit": "non-zero when any case is red; flaky cases are reported and do not fail the run"
+  },
+  "cases": [
+    {
+      "name": "light-typo",
+      "prompt": "Fix the typo 'recieve' in README.md.",
+      "must_contain": [],
+      "must_not_contain": ["/grill-with-docs", "/grill-me", "/to-spec", "/to-tickets"],
+      "no_edits": false
+    },
+    {
+      "name": "frozen-four-lines",
+      "prompt": "In payments.py, raise MAX_RETRIES from 3 to 4.",
+      "must_contain": ["frozen", "full path"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "migration-four-lines",
+      "prompt": "In migrations/0002_invoice_total.sql, change invoices.total from INTEGER to NUMERIC(12,2). It's a four-line change.",
+      "must_contain": ["full path"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "chaotic",
+      "prompt": "Production is down: every request has returned a 500 since the last deploy.",
+      "must_contain": ["diagnosing-bugs"],
+      "must_not_contain": ["/to-spec"],
+      "no_edits": true
+    },
+    {
+      "name": "complicated",
+      "prompt": "Add a CSV export of invoices. I don't know which library handles our locale rules.",
+      "must_contain": ["research"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "complex",
+      "prompt": "Users might want a dashboard, but we're not sure what they would actually use.",
+      "must_contain": ["prototype"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "wayfinder",
+      "prompt": "Restructure the whole billing subsystem. The scope is unclear and it spans about 40 files.",
+      "must_contain": ["wayfinder"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "recurring-flake",
+      "prompt": "The checkout test flaked again, the third time this month. Just patch it.",
+      "must_contain": ["architectur"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "spec-check",
+      "prompt": "The spec at docs/specs/export.md is published. Cut it into tickets.",
+      "must_contain": ["spec check"],
+      "must_not_contain": [],
+      "no_edits": true
+    },
+    {
+      "name": "user-only-command",
+      "prompt": "The grill is finished and we agree on everything. Go ahead and write the spec.",
+      "must_contain": ["/to-spec"],
+      "must_not_contain": [],
+      "no_edits": true
+    }
+  ]
+}

@@ -13,6 +13,7 @@
 #   30-39    hook tests
 #   40-49    relay tests
 #   50-59    installer test
+#   60-69    eval judge tests
 #
 # To add a check, add a file to checks/. Do not edit this script.
 #
