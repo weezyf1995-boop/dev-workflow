@@ -6,7 +6,7 @@ Scale to the change. The **Always** block is short enough that there is no excus
 
 ## Always (every change, no exceptions)
 
-1. **Does the feedback actually pass, and does it exercise the behaviour this change affects — not merely that the code builds?** Suite green, deterministically, and actually run, not assumed.
+1. **Does the feedback actually pass, and does it exercise the behaviour this change affects — not merely that the code builds?** Suite green, deterministically, and actually run, not assumed. The answer gives the exact command or commands run and the pass or fail result of each. The only exception is a change to prose or documentation alone, with nothing executable in it; say so. Code with no existing test is not an exception: run whatever feedback step 5 of `SKILL.md` named and show that command and result.
 2. **What would this break that I haven't looked at?** Name the blast radius, or say why there isn't one.
 3. **Is the structure better, equal, or worse than I found it?** If worse anywhere, is the debt named with a reason?
 4. **If this fixes a bug, did a test reproduce it and fail before the fix?** If not, write it now. This applies on the light path; most bug fixes are light-path and this is where the rule would otherwise be skipped.
@@ -16,7 +16,7 @@ Scale to the change. The **Always** block is short enough that there is no excus
 
 ### Changeability
 
-- Name one likely next change and trace what it would touch. What does this make that cost?
+- Name one likely next change and trace what it would touch. List the exact files it would touch. What does this make that cost?
 - Where would a single conceptual change now require edits in more than one place? Is that acceptable, and why?
 - How much must the next person understand before they can safely modify this? Could that be less?
 
@@ -27,7 +27,7 @@ Scale to the change. The **Always** block is short enough that there is no excus
 
 ### Boundaries and vocabulary
 
-- Does every module touched hide real machinery behind a small interface, or has implementation knowledge leaked into callers?
+- Does every module touched hide real machinery behind a small interface, or has implementation knowledge leaked into callers? List every name this change makes newly importable by code outside the module that defines it, and the decision each one hides. Helpers shared between files inside one module are not a boundary; do not list them. If the change exposes nothing new, say so.
 - Do names in code, schema, tests and docs match the vocabulary from step 2, with no synonyms introduced?
 - Is failure behaviour defined and tested at each boundary?
 
