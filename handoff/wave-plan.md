@@ -29,3 +29,9 @@ Risk rule applied: #19 parses CLI JSON and judges replies; #20 parses hook paylo
 - **New checks** take number prefixes from the bands at the top of `check.sh`; Python checks must not write bytecode into the repository.
 - **Brief rules:** each builder confirms its worktree contains the base commit named in its brief before doing anything else, and stops and reports if it does not.
 - A ticket that finds itself breaking one of these rules has left the spec: it stops and says so.
+
+## Progress
+
+- 2026-11-20, wave 1 landed: #17 as `c29a646`, #18 as `8f2f905`. Both reviews passed on each; advisories applied by the coordinator.
+- Next: wave 2, #19 Routing evals (opus, medium). Base for its brief: the tip of `spec-2-machinery` after this note.
+- Local note: `worktree.baseRef` is not set on this VPS, so the Agent tool's isolation would branch from `main`. Wave 1 used worktrees made by hand at the base commit. Reviewers must be told not to check out branches in the main checkout (one did, in wave 1).
