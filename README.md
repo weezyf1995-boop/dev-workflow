@@ -56,7 +56,7 @@ Check it worked by running `/memory` in a session: `dev-workflow.md` should be i
 
 ## Other AI coding agents
 
-The skills travel; the glue is written for Claude Code. Pocock's and Osmani's skills are plain Markdown that Codex, Cursor and other agents can use (`npx skills add` installs them for any supported agent through `-a <agent>`), and changeable-software is the same. The workflow file leans on Claude Code features: the `@` import in `CLAUDE.md`, subagents in git worktrees for parallel tickets, `/memory`, and the Opus and Sonnet model rule. On another agent, load `workflow/dev-workflow.md` the way that agent loads instructions (`AGENTS.md`, for example) and expect to adapt those parts. `install.sh` targets Claude Code only.
+The skills travel; the glue is written for Claude Code. Pocock's and Osmani's skills are plain Markdown that Codex, Cursor and other agents can use (`npx skills add` installs them for any supported agent through `-a <agent>`), and changeable-software is the same. The workflow file leans on Claude Code features: the `@` import in `CLAUDE.md`, subagents in git worktrees for parallel tickets, `/memory`, and the [model table](workflow/dev-workflow.md#models). On another agent, load `workflow/dev-workflow.md` the way that agent loads instructions (`AGENTS.md`, for example) and expect to adapt those parts. `install.sh` targets Claude Code only.
 
 ## Hooks
 
@@ -75,7 +75,7 @@ Past 400k tokens the guard stops the session taking new work: it refuses prompts
 
 The frozen tripwire denies an edit tool (Edit, Write, MultiEdit, NotebookEdit), in the main session or a subagent, whose target is a file in the repository with a marker line: a comment leader (`#`, `//`, `--` or `;`) at the start of a line, then `FROZEN CORE:`. It matches by file identity, so a symlink, hard link or relative path reaches the same file (and so does other casing, on a case-insensitive filesystem), and it searches the whole repository, untracked files included. Once you have ruled on a change, type `frozen override <path> [<path>...]` (paths relative to the repository top level) to open those files for 8 hours in every worktree of the repository; a new override replaces the last, and `frozen override clear` ends it. The hook answers that prompt itself, so it never reaches the model. It is a tripwire, not a mechanism: shell commands and cloud sessions are not covered, so each frozen core still needs its own mechanism in the project's test suite. If the tripwire fails it allows the edit and says so in one line.
 
-`relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to `"opus"`, with effort high, and every session, including one opened by a relay, starts where the workflow wants it. Elsewhere, relay.sh prints the prompt to paste.
+`relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to the coordinator row's settings value in the [model table](workflow/dev-workflow.md#models), with that row's effort, and every session, including one opened by a relay, starts where the workflow wants it. Elsewhere, relay.sh prints the prompt to paste.
 
 ## Worktree base
 
