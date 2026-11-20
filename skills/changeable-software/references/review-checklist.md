@@ -2,7 +2,7 @@
 
 Run before any PR, merge, commit to main, or telling the user the work is done. Answer the questions; do not tick them. Where an answer is bad, fix it or record it in the PR description with the reason.
 
-Scale to the change. The **Always** block is short enough that there is no excuse for skipping it on a one-line fix. The rest applies to full-path changes — new boundaries, anything spanning files, and anything touching money, auth, external APIs or data you cannot regenerate, regardless of size.
+Scale to the change. The **Always** block is short enough that there is no excuse for skipping it on a one-line fix. The rest applies to full-path changes — new boundaries, anything spanning files, and anything that meets the hard disqualifiers in `SKILL.md`, regardless of size.
 
 ## Always (every change, no exceptions)
 

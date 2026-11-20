@@ -16,7 +16,7 @@ A high-quality design makes future change cheaper, safer and more local. Correct
 
 This criterion is supreme, not merely default: it outranks every other design consideration except in the three bounded cases below. These are exceptions to be named and justified, not a general licence to trade changeability away.
 
-**The frozen core.** Some components must be correct rather than changeable: money movement, authentication and authorisation, risk limits, kill switches, consensus paths, verified parsers, anything whose failure is unacceptable and whose change is rare. For these, correctness under adversarial input outranks changeability. Keep such cores small, isolated behind deep boundaries, and deliberately frozen, so the rest of the system stays changeable around them. Identify the frozen core before designing boundaries, not after: it determines where the boundaries go.
+**The frozen core.** Some components must be correct rather than changeable: anything whose failure is unacceptable and whose change is rare. The one list of what counts is in `SKILL.md`, step 1. For these, correctness under adversarial input outranks changeability. Keep such cores small, isolated behind deep boundaries, and deliberately frozen, so the rest of the system stays changeable around them. Identify the frozen core before designing boundaries, not after: it determines where the boundaries go.
 
 **The discount rate.** Changeability is an option and options carry cost. For deliberately disposable code — spikes, prototypes, end-of-life systems — the option expires worthless. Write it plainly and invest nothing in its structure. But mark it disposable: unmarked throwaway code becomes load-bearing, and then its structure is everyone's problem.
 
