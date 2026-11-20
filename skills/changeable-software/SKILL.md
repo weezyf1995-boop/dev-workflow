@@ -52,10 +52,11 @@ For each module the change creates or alters, write the interface before the imp
 
 Prefer deep modules — substantial capability behind a small interface. A module is not good because it is small; it is good because its interface hides real machinery and stops implementation knowledge leaking outward. Organise around the decisions hidden, not the order the program runs in.
 
-Before committing to the shape, two questions (reasoning in `references/laws.md`, Law 3 and the generality note):
+Before committing to the shape, three questions (reasoning in `references/laws.md`, Law 3 and the generality note):
 
 - **Where did the complexity go, and who pays?** Every decision moves it somewhere — name which: callers, implementation, or operations. "It got simpler everywhere" is not an available answer; if that is what you wrote, you have not found where it went.
 - **Generalise or stay narrow?** Keyed to step 1: if the problem is complicated, consequences are discoverable by analysis and deliberate generality prevents expensive leakage later. If it is complex, the future shape does not yet exist in knowable form and generality is speculation — stay narrow and replaceable. Unsure → whichever mistake is cheaper to reverse.
+- **What is one genuinely different structure, and why did it lose?** Full path only. Name one alternative that differs in structure, not in naming or detail, and say in a sentence or two why it lost. If you cannot name one, you have not yet seen the design space. *(Amendment, owner's authority, 2026-11-20.)*
 
 Your own understanding is not evidence the design is simple. It is simple when it is simple for whoever modifies it next.
 
