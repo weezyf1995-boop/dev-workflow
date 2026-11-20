@@ -72,6 +72,18 @@ Past 400k tokens the guard stops the session taking new work: it refuses prompts
 
 `relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to `"opus"`, with effort high, and every session, including one opened by a relay, starts where the workflow wants it. Elsewhere, relay.sh prints the prompt to paste.
 
+## Worktree base
+
+By default Claude Code starts an isolated worktree from the repository's default branch, so a builder can begin on a commit that lacks the coordinator's unpushed work. The workflow guards against that: each builder brief names the base commit, and the builder stops if its worktree doesn't contain it. To stop it happening at all, set `worktree.baseRef` to `"head"` in `~/.claude/settings.json` (any settings file works), so new worktrees branch from your current local `HEAD`:
+
+```json
+{
+  "worktree": { "baseRef": "head" }
+}
+```
+
+Checked against Claude Code's settings reference (code.claude.com/docs/en/settings-reference, `worktree.baseRef`) and the worktrees page (code.claude.com/docs/en/worktrees). The values are `"fresh"` (the default, branches from `origin/<default-branch>`) and `"head"`; a branch name isn't accepted. The installer doesn't touch your settings.
+
 ## Updating
 
 Pull this repo and re-run `bash install.sh`. It moves any old copy of this repo's files to `~/.claude/skills-backup/` before replacing it.
