@@ -79,6 +79,22 @@ def snapshot(repo):
     return {"files": files, "commits": commits}
 
 
+KEEP_ENV = ("CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_")
+
+
+def cli_env():
+    """The environment minus the variables a running Claude Code session sets
+    for its children (session id, effort, bridge, entrypoint), so a run started
+    from inside a session behaves like one started from a plain terminal.
+    Credentials and the config directory are kept."""
+    env = {}
+    for key, value in os.environ.items():
+        if key.startswith("CLAUDE") and not key.startswith(KEEP_ENV):
+            continue
+        env[key] = value
+    return env
+
+
 def ask(prompt, cwd, model, timeout):
     """Return (reply text, error or None) from one headless CLI run."""
     cmd = ["claude", "-p", prompt, "--output-format", "json",
@@ -86,7 +102,7 @@ def ask(prompt, cwd, model, timeout):
     if model:
         cmd += ["--model", model]
     try:
-        out = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True,
+        out = subprocess.run(cmd, cwd=cwd, env=cli_env(), capture_output=True, text=True,
                              timeout=timeout, stdin=subprocess.DEVNULL)
     except subprocess.TimeoutExpired:
         return "", "timed out after %ss" % timeout
