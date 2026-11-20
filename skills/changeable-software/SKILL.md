@@ -15,7 +15,7 @@ The reasoning behind these rules is in `references/laws.md` — read it once, an
 
 **Light path.** The change touches roughly one file, introduces no new boundary, and is revertible in a single commit. Do steps 1 and 5, then the "Always" block of the review checklist. Nothing else.
 
-**Hard disqualifiers — full path regardless of size.** If the change touches a frozen core (one list, defined in step 1) or an external boundary — an external API, or data you cannot regenerate — take the full path even if it is four lines. Size is not the risk; blast radius is. A four-line change inside a live trading loop, a payment path, or an agent's execution path is not a small change.
+**Hard disqualifiers — full path regardless of size.** If the change touches a frozen core (one list, defined in step 1) or an external boundary — an external API, or data you cannot regenerate — take the full path even if it is four lines. Size is not the risk; blast radius is. A four-line change inside a live trading loop, a payment path, or an agent's execution path is not a small change. A change to the shape of persisted state (a migration, a stored file format, a queue payload, a wire schema) takes the full path, because reverting the commit does not revert the data already written. State that can be deleted and rebuilt from source, such as a cache, does not count. *(Amendment, owner's authority, 2026-11-20.)*
 
 **Full path.** Everything else that is not light: a new module, a changed interface, a change spanning files, or anything not cleanly revertible. Do all five steps, and record what the next session needs in the project's `CLAUDE.md` — see "Where the answers live".
 
