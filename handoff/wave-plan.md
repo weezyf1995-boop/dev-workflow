@@ -33,5 +33,6 @@ Risk rule applied: #19 parses CLI JSON and judges replies; #20 parses hook paylo
 ## Progress
 
 - 2026-11-20, wave 1 landed: #17 as `c29a646`, #18 as `8f2f905`. Both reviews passed on each; advisories applied by the coordinator.
-- Next: wave 2, #19 Routing evals (opus, medium). Base for its brief: the tip of `spec-2-machinery` after this note.
+- 2026-11-20, wave 2 landed: #19 as `1a5608e` (cases sealed) … `01dca89` (review fixes); four commits kept so the seal-before-baseline order stays visible. Both reviews (opus) passed. Baseline: 5 green, 3 flaky (migration-four-lines, complicated, spec-check), 2 red (chaotic, recurring-flake). Debt: an amend or reset that leaves files untouched is not seen as an edit.
+- Next: wave 3, #20 Frozen tripwire (opus, medium). Base for its brief: the tip of `spec-2-machinery` after this note.
 - Local note: `worktree.baseRef` is not set on this VPS, so the Agent tool's isolation would branch from `main`. Wave 1 used worktrees made by hand at the base commit. Reviewers must be told not to check out branches in the main checkout (one did, in wave 1).
