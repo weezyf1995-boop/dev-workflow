@@ -4,8 +4,9 @@ Rules live in ~/.claude/dev-workflow.md under "Context budget".
 Events:
   UserPromptSubmit: past WARN, tell the user and brief Claude once to relay at the next phase boundary
     (or the next task boundary when no workflow step is under way). Past HIGH, the stop: a prompt is
-    refused unless it is `relay`, a housekeeping slash command, or starts with `override`, which lets the
-    session run on for OVERRIDE_SPAN more tokens before the stop returns.
+    refused unless it is `relay`, a housekeeping slash command, a `frozen override` (the frozen
+    tripwire's, which starts no new work), or starts with `override`, which lets the session run on
+    for OVERRIDE_SPAN more tokens before the stop returns.
   PreToolUse on Agent/Task: past HIGH (and not overridden), deny new subagents so a long run relays
     at its next ticket boundary.
   PostToolUse on Bash: nudge after oversized output.
@@ -81,6 +82,8 @@ def prompt_submit(d, ctx):
         word = prompt.split(None, 1)[0].lower().rstrip(".,:;!") if prompt else ""
         if word.startswith("/") and word[1:].split(":")[-1] in HOUSEKEEPING:
             done()
+        if prompt.split()[:2] == ["frozen", "override"]:
+            done()  # the frozen tripwire's override starts no new work; that hook answers it
         if word == "relay":
             done({"systemMessage": f"Context {k(ctx)}. Claude is relaying to a fresh session.",
                   "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": (

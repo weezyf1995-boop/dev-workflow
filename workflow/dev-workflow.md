@@ -30,6 +30,8 @@ On any coding request, run changeable-software's path check and Cynefin classifi
 
 Name any frozen core or sealed measure here. Either one forces the full path regardless of size.
 
+The frozen tripwire backs that rule where its hook is on (README, Hooks): it denies Edit, Write, MultiEdit and NotebookEdit, for the main session and subagents, on any file in the repository carrying a `FROZEN CORE:` marker line, whether reached by symlink, hard link or relative path, or by other casing where the filesystem is case-insensitive. A denial means stop and ask for the user's ruling; Claude never works round it. Once the user has ruled, they type `frozen override <path> [<path>...]` (repository-relative) to open those files for 8 hours across every worktree, and `frozen override clear` ends it. It is a tripwire, not a mechanism: shell commands and cloud sessions are not covered, so each frozen core still needs its own mechanism (a purity test, a fingerprinted config, a separate process) running in the project's suite.
+
 ## Main flow: idea to ship
 
 0. Once per repo: /setup-matt-pocock-skills.

@@ -183,6 +183,12 @@ class UserPromptSubmitTest(GuardTest):
             with self.subTest(text=text):
                 self.assert_blocked(self.run_json(self.prompt(HIGH, "work", prompt=text)), HIGH)
 
+    def test_frozen_override_prompt_passes_the_stop(self):
+        for text in ("frozen override payments.py", "frozen override clear", "frozen override"):
+            with self.subTest(text=text):
+                self.assertEqual(self.run_guard(self.prompt(HIGH, "frozen", prompt=text))[:2], (0, ""))
+        self.assert_blocked(self.run_json(self.prompt(HIGH, "frozen", prompt="frozen payments.py")), HIGH)
+
     def test_override_runs_on_for_the_span_then_the_stop_returns(self):
         first = self.run_json(self.prompt(HIGH, "ov", prompt="override, finish the landing"))
         self.assertNotIn("decision", first)

@@ -88,7 +88,7 @@ assert_restore() { # $1 run number: a default install, restored from install/ski
 assert_tree() { # $1 run number
   local r="run $1"
   check "$r: workflow file installed" cmp -s "$REPO_ROOT/workflow/dev-workflow.md" "$C/dev-workflow.md"
-  for s in context_guard.py context_report.py relay.sh; do
+  for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
     check "$r: scripts/$s installed" cmp -s "$REPO_ROOT/scripts/$s" "$C/scripts/$s"
   done
   check "$r: scripts/relay.sh executable" test -x "$C/scripts/relay.sh"
@@ -99,6 +99,7 @@ assert_tree() { # $1 run number
   check "$r: CLAUDE.md import line present exactly once (found ${n:-0})" test "${n:-0}" -eq 1
   check "$r: existing CLAUDE.md content kept" grep -qxF "# my own notes" "$C/CLAUDE.md"
   check "$r: no backup folder inside skills/" test ! -e "$C/skills/skills-backup"
+  check "$r: settings.json left alone (none created)" test ! -e "$C/settings.json"
 }
 
 # A user who already has a CLAUDE.md of their own.
@@ -113,7 +114,7 @@ check "run 1: nothing backed up on a fresh install" test ! -e "$C/skills-backup"
 # Mark installed files so the backups can be told apart from fresh copies.
 echo "MARKER-OLD-WORKFLOW" >> "$C/dev-workflow.md"
 echo "MARKER-OLD-SKILL" >> "$C/skills/changeable-software/SKILL.md"
-for s in context_guard.py context_report.py relay.sh; do
+for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
   echo "# MARKER-OLD-$s" >> "$C/scripts/$s"
 done
 
@@ -142,7 +143,7 @@ backed_up() { # $1 name, $2 marker: some backup folder holds $1 containing $2
 }
 check "run 2: old dev-workflow.md backed up" backed_up dev-workflow.md MARKER-OLD-WORKFLOW
 check "run 2: old changeable-software backed up" backed_up changeable-software MARKER-OLD-SKILL
-for s in context_guard.py context_report.py relay.sh; do
+for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
   check "run 2: old $s backed up" backed_up "$s" "MARKER-OLD-$s"
 done
 stray=$(grep -rlF MARKER-OLD "$C/skills" "$C/scripts" "$C/dev-workflow.md" 2>/dev/null)
