@@ -26,6 +26,8 @@ TEST_PATH="$STUB_DIR:$PATH"
 REPO_LOCK="$REPO_ROOT/install/skills.lock"
 # The commit the stub git reports as every upstream HEAD during --update.
 STUB_HEAD=1111111111111111111111111111111111111111
+# The scripts install.sh copies into ~/.claude/scripts.
+SCRIPTS="context_guard.py frozen_tripwire.py suite_tripwire.py context_report.py relay.sh"
 
 failures=0
 fail() { echo "FAIL: $*"; failures=$((failures + 1)); }
@@ -88,7 +90,7 @@ assert_restore() { # $1 run number: a default install, restored from install/ski
 assert_tree() { # $1 run number
   local r="run $1"
   check "$r: workflow file installed" cmp -s "$REPO_ROOT/workflow/dev-workflow.md" "$C/dev-workflow.md"
-  for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
+  for s in $SCRIPTS; do
     check "$r: scripts/$s installed" cmp -s "$REPO_ROOT/scripts/$s" "$C/scripts/$s"
   done
   check "$r: scripts/relay.sh executable" test -x "$C/scripts/relay.sh"
@@ -114,7 +116,7 @@ check "run 1: nothing backed up on a fresh install" test ! -e "$C/skills-backup"
 # Mark installed files so the backups can be told apart from fresh copies.
 echo "MARKER-OLD-WORKFLOW" >> "$C/dev-workflow.md"
 echo "MARKER-OLD-SKILL" >> "$C/skills/changeable-software/SKILL.md"
-for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
+for s in $SCRIPTS; do
   echo "# MARKER-OLD-$s" >> "$C/scripts/$s"
 done
 
@@ -143,7 +145,7 @@ backed_up() { # $1 name, $2 marker: some backup folder holds $1 containing $2
 }
 check "run 2: old dev-workflow.md backed up" backed_up dev-workflow.md MARKER-OLD-WORKFLOW
 check "run 2: old changeable-software backed up" backed_up changeable-software MARKER-OLD-SKILL
-for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
+for s in $SCRIPTS; do
   check "run 2: old $s backed up" backed_up "$s" "MARKER-OLD-$s"
 done
 stray=$(grep -rlF MARKER-OLD "$C/skills" "$C/scripts" "$C/dev-workflow.md" 2>/dev/null)

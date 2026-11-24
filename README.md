@@ -76,7 +76,7 @@ The skills travel; the glue is written for Claude Code. Pocock's and Osmani's sk
 
 ## Hooks
 
-The installer copies the context guard and the frozen tripwire but doesn't touch your settings. To turn them on, add these to `hooks` in `~/.claude/settings.json`:
+The installer copies the context guard, the frozen tripwire and the suite tripwire but doesn't touch your settings. To turn them on, add these to `hooks` in `~/.claude/settings.json`:
 
 ```json
 "SessionStart":     [{ "matcher": "resume|fork", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
@@ -84,12 +84,15 @@ The installer copies the context guard and the frozen tripwire but doesn't touch
                      { "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/frozen_tripwire.py\"", "timeout": 10 }] }],
 "PreToolUse":       [{ "matcher": "Agent|Task", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] },
                      { "matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/frozen_tripwire.py\"", "timeout": 10 }] }],
-"PostToolUse":      [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }]
+"PostToolUse":      [{ "matcher": "Bash", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/context_guard.py\"", "timeout": 5 }] }],
+"Stop":             [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/suite_tripwire.py\"", "timeout": 600 }] }]
 ```
 
 Past 400k tokens the guard stops the session taking new work: it refuses prompts other than `relay`, a housekeeping command (/clear, /compact, /handoff and the like), a `frozen override`, or one starting with `override`, and the PreToolUse entry stops new subagents. `override` lets the session run on for another 100k.
 
 The frozen tripwire denies an edit tool (Edit, Write, MultiEdit, NotebookEdit), in the main session or a subagent, whose target is a file in the repository with a marker line: a comment leader (`#`, `//`, `--` or `;`) at the start of a line, then `FROZEN CORE:`. It matches by file identity, so a symlink, hard link or relative path reaches the same file (and so does other casing, on a case-insensitive filesystem), and it searches the whole repository, untracked files included. Once you have ruled on a change, type `frozen override <path> [<path>...]` (paths relative to the repository top level) to open those files for 8 hours in every worktree of the repository; a new override replaces the last, and `frozen override clear` ends it. The hook answers that prompt itself, so it never reaches the model. It is a tripwire, not a mechanism: shell commands and cloud sessions are not covered, so each frozen core still needs its own mechanism in the project's test suite. If the tripwire fails it allows the edit and says so in one line.
+
+The suite tripwire runs a repository's own checks, named in `.claude/checks.json` at its top level: a JSON object with optional commands `lint`, `touched` and `full`, each run by the shell from the top level. This repository's is `{"full": "./check.sh"}`. With no file, or no key, the hook does nothing. On Stop it runs `full` when the checkout is at `main`'s tree and that tree isn't yet recorded green in `~/.claude/state`, so it fires after a landing, not after every edit; a green run records the tree. A red run blocks the stop and shows Claude the last 40 lines of output. After two blocks for the same session on the same tree it lets the stop through with a message naming the failure, and that session's later stops pass without rerunning the suite until `main` moves. A command still running after 9 minutes counts as red. When `$CLAUDE_PROJECT_DIR` is set, the hook only acts inside it, so a session that has moved into another clone never runs that clone's commands. It is a tripwire (local, bypassable), not a mechanism: the mechanism is CI on `main`. If the tripwire fails it lets the stop through and says so in one line.
 
 `relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to the coordinator row's settings value in the [model table](workflow/dev-workflow.md#models), with that row's effort, and every session, including one opened by a relay, starts where the workflow wants it. Elsewhere, relay.sh prints the prompt to paste.
 

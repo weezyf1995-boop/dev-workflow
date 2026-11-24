@@ -124,17 +124,17 @@ else
   grep -qxF "@~/.claude/dev-workflow.md" "$F" || printf "\n@~/.claude/dev-workflow.md\n" >> "$F"
 fi
 
-echo "6/6 Hook and relay scripts (context guard, frozen tripwire), into ~/.claude/scripts"
+echo "6/6 Hook and relay scripts (context guard, frozen tripwire, suite tripwire), into ~/.claude/scripts"
 mkdir -p "$CLAUDE_DIR/scripts"
-for s in context_guard.py frozen_tripwire.py context_report.py relay.sh; do
+for s in context_guard.py frozen_tripwire.py suite_tripwire.py context_report.py relay.sh; do
   [ -e "$CLAUDE_DIR/scripts/$s" ] && backup "$CLAUDE_DIR/scripts/$s"
   cp "$HERE/scripts/$s" "$CLAUDE_DIR/scripts/$s"
 done
 chmod +x "$CLAUDE_DIR/scripts/relay.sh"
-echo "   The context guard and the frozen tripwire only run once their hooks are in ~/.claude/settings.json;"
+echo "   The hook scripts only run once their hooks are in ~/.claude/settings.json;"
 echo "   the installer leaves settings alone, so see the README's Hooks section for the lines to add."
 
 echo
 echo "Done. Next, in each repo you build in, open Claude Code and run /setup-matt-pocock-skills once."
 echo "To confirm the workflow loaded, run /memory in a session and look for dev-workflow.md."
-echo "To turn on the context guard and the frozen tripwire, add their hook lines from the README's Hooks section."
+echo "To turn on the context guard and the tripwires, add their hook lines from the README's Hooks section."
