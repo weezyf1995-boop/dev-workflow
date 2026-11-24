@@ -11,11 +11,13 @@
 - The cloud environment "dev-workflow" is already on Limited network access.
 - The cloud-hooks probe is answered: yes. Repo hooks fire in cloud sessions for all five events tested. The detail and what follows from it are under gap 2 of the plan. The probe commit is reverted and never reached `main`.
 - `/to-spec` is done: the spec is issue #24 (`ready-for-agent`), written from the plan. Sami confirmed the four test seams: the hook-script process boundary, `./check.sh` check files, hand tests, and one routing eval run after the prose batch.
+- `/to-tickets` is done: ten tickets, #25 to #34, sub-issues of #24 with GitHub's native blocked-by links. #32 (hand tests) and #34 (`/doctor prompt-audit`) are Sami's (`ready-for-human`, a label created for this). The plan's step 4 is split three ways: tracer bullet #28 (Stop), #30 (SubagentStop and PostToolUse), #31 (cloud wiring). Step 3's hand test is #32.
+- Skipped: the spec check before `/to-tickets` never ran. It goes into the final report.
 - Nothing is implemented. No workflow, hook, settings, skill or CI file has changed.
 
 ## Next step
 
-The spec check on issue #24, then `/to-tickets` (one ticket per step in the plan's "Order"), the wave plan, then `/implement`, following the plan's "Execution" table.
+The wave plan, then `/implement`. The frontier is #25, #26, #27, #28 and #29. #26, #27, #28 and #29 all edit the README, so they take turns, and #25 can run beside any of them.
 
 ## Rules that hold
 
