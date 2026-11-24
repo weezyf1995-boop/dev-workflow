@@ -1,0 +1,68 @@
+# CI for a project repo. Copy to .github/workflows/check.yml.
+#
+# It runs the command named by "full" in .claude/checks.json, read at run time,
+# so that file stays the one place the full check is named. When check fails
+# on a push to main, a second job opens one ready-for-agent issue with the run
+# link, and opens none while one is already open. The repo needs a
+# ready-for-agent label.
+name: check
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the full check from .claude/checks.json
+        run: |
+          full=$(python3 -c 'import json, sys
+          try:
+              with open(".claude/checks.json") as f:
+                  cmd = json.load(f).get("full")
+          except (OSError, ValueError) as e:
+              sys.exit(".claude/checks.json: %s" % e)
+          if not isinstance(cmd, str) or not cmd.strip():
+              sys.exit(".claude/checks.json has no \"full\" command")
+          print(cmd)')
+          echo "Running: $full"
+          bash -c "$full"
+
+  # Only this job can write issues; it has no checkout and no push rights.
+  red-main-issue:
+    needs: check
+    if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    concurrency:
+      group: red-main-issue
+      cancel-in-progress: false
+    steps:
+      - name: Open an issue unless one is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PREFIX: "Red main: check failed"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          open=$(gh issue list --state open --limit 500 --json title \
+            --jq "[.[] | select(.title | startswith(env.PREFIX))] | length")
+          if [ "$open" -gt 0 ]; then
+            echo "An open issue already starts with \"$PREFIX\"; not opening another."
+            exit 0
+          fi
+          gh issue create \
+            --title "$PREFIX on ${SHA:0:7}" \
+            --label ready-for-agent \
+            --body "The \`check\` workflow failed on a push to \`main\` at $SHA.
+
+          Run: $RUN_URL
+
+          Fix forward or revert. Close this issue once \`main\` is green; until then, later failures don't open another."

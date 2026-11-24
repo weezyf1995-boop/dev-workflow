@@ -120,6 +120,8 @@ EOF
 
 It targets the default branch, is active straight away, has two rules (block deletion, block non-fast-forward pushes) and no bypass actors. This repository carries the same ruleset. It was not tested by attempting a force push; check it with `gh api repos/OWNER/REPO/rulesets`.
 
+The ruleset stops lost work; CI catches broken work. `.github/workflows/check.yml` runs `./check.sh` on every push and pull request, on Ubuntu and macOS. When it fails on a push to `main`, a second job opens a `ready-for-agent` issue titled "Red main: check failed" with the run link, and opens no other while that one is open, so close it once `main` is green. Only that job can write issues; the rest of the workflow is read-only, and nothing in it can push. For a project repo, copy `templates/ci-check.yml` to `.github/workflows/check.yml`: it runs on Ubuntu, runs the `full` command from the project's `.claude/checks.json` and opens the same issue. The repo needs a `ready-for-agent` label.
+
 ## Routing evals
 
 One command checks whether the installed workflow still routes ten representative requests correctly. Run it after any edit to the workflow or the skill, on a machine where `install.sh` has been run and the Claude Code CLI is logged in:

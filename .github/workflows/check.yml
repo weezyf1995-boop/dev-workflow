@@ -18,3 +18,39 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run checks
         run: ./check.sh
+
+  # When check fails on a push to main, open one ready-for-agent issue with the
+  # run link. While an issue with the same title prefix is open, add nothing.
+  # Only this job can write issues; it has no checkout and no push rights.
+  red-main-issue:
+    needs: check
+    if: failure() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    concurrency:
+      group: red-main-issue
+      cancel-in-progress: false
+    steps:
+      - name: Open an issue unless one is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PREFIX: "Red main: check failed"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          open=$(gh issue list --state open --limit 500 --json title \
+            --jq "[.[] | select(.title | startswith(env.PREFIX))] | length")
+          if [ "$open" -gt 0 ]; then
+            echo "An open issue already starts with \"$PREFIX\"; not opening another."
+            exit 0
+          fi
+          gh issue create \
+            --title "$PREFIX on ${SHA:0:7}" \
+            --label ready-for-agent \
+            --body "The \`check\` workflow failed on a push to \`main\` at $SHA.
+
+          Run: $RUN_URL
+
+          Fix forward or revert. Close this issue once \`main\` is green; until then, later failures don't open another."
