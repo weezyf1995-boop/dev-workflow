@@ -57,6 +57,8 @@ Check it worked by running `/memory` in a session: `dev-workflow.md` should be i
 
 **Claude Code on the web.** Cloud sessions don't read your local `~/.claude`. Add `skills/changeable-software` and `cloud/dev-workflow` to your account as skills, and install the Pocock and Addy Osmani skills there the same way.
 
+**Cloud environment rules.** Start every environment on Limited network access, and add a host only when a blocked request shows the need. Put API keys in Network secrets, never in environment variables, which anything in the VM can read. A Claude API key can't be a network secret, so keep it out of cloud environments.
+
 ## Prerequisites
 
 The installer does not provide these. The table pairs each with the documented behaviour that depends on it.
