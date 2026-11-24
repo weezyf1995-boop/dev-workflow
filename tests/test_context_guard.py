@@ -354,5 +354,20 @@ class MalformedInputTest(GuardTest):
         self.assertEqual(self.run_guard(d)[:2], (0, ""))
 
 
+class InternalErrorTest(GuardTest):
+    def test_internal_error_lets_the_action_through_and_says_the_guard_failed(self):
+        # ~/.claude is a plain file, so the guard cannot create its state directory.
+        with open(os.path.join(self.home, ".claude"), "w", encoding="utf-8") as f:
+            f.write("not a directory")
+        code, out, err = self.run_guard(self.prompt(WARN))
+        self.assertEqual(code, 0, err)
+        self.assertEqual(err, "")
+        self.assertEqual(len(out.strip().splitlines()), 1)
+        msg = json.loads(out)
+        self.assertEqual(list(msg), ["systemMessage"])
+        self.assertIn("Context guard failed", msg["systemMessage"])
+        self.assertIn("not protecting anything", msg["systemMessage"])
+
+
 if __name__ == "__main__":
     unittest.main()

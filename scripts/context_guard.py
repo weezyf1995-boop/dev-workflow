@@ -11,7 +11,8 @@ Events:
     at its next ticket boundary.
   PostToolUse on Bash: nudge after oversized output.
   SessionStart on resume/fork: cold-cache warning.
-Any error exits 0 silently, so a broken guard never blocks work."""
+An internal error still exits 0, so a broken guard never blocks work, but it prints a one-line
+systemMessage saying the guard failed. Malformed stdin and unknown events stay silent."""
 import json, os, sys
 
 WARN, HIGH = 200_000, 400_000   # tokens in context (1M window; baseline is 30-100k)
@@ -123,8 +124,7 @@ def prompt_submit(d, ctx):
     done(res)
 
 
-def main():
-    d = json.load(sys.stdin)
+def main(d):
     ev = d.get("hook_event_name")
 
     if ev == "UserPromptSubmit":
@@ -176,8 +176,15 @@ def main():
 
 if __name__ == "__main__":
     try:
-        main()
+        payload = json.load(sys.stdin)
+    except ValueError:
+        sys.exit(0)  # malformed stdin is not the guard's failure
+    if not isinstance(payload, dict):
+        sys.exit(0)
+    try:
+        main(payload)
     except SystemExit:
         raise
-    except Exception:
+    except Exception as e:
+        print(json.dumps({"systemMessage": f"Context guard failed ({type(e).__name__}) and is not protecting anything."}))
         sys.exit(0)
