@@ -33,7 +33,7 @@ The detail is on #32. In short:
 
 ## Next step
 
-Sami types `/implement` for #33, the prose batch. It folds the run report's findings and the list above into the plan first, then makes the workflow, skill and glossary edits, rebuilds the cloud skill and runs the routing evals once. Then Sami's #34. #36 can run any time.
+Sami asked on 2026-11-24 for #33 and #36 to run together. The wave plan is the "Second run" section of `docs/plans/guardrails-waves.md`; base commit `76f5b1f`. The local payload #36 needed is logged on #36. Run both through the ticket loop in `workflow/dev-workflow.md` (worktree builders, review, land on `main` one at a time, #36 first), then write the final report with "Read before deploying" and "Where I needed you". Then Sami's #34.
 
 ## Rules that hold
 
