@@ -19,7 +19,7 @@ Path check (changeable-software): full path. The change touches security control
 9. **Secrets deny list.** Deny `.env`, `.env.local`, `.env.*.local` and `.env.production`. `.env.example` stays readable.
 10. **changeable-software.** Amend the skill's "Where the answers live" (owner's amendment, dated); no second local override in the workflow.
 
-Still open, and not yours to decide: the two probes.
+Still open, and not yours to decide: the cloud-hooks probe.
 
 ## What the docs say (verified 2026-11-23, code.claude.com/docs/en, Claude Code 2.1.331 current)
 
@@ -62,9 +62,9 @@ One fix: make the context guard's error path print a `systemMessage` the way the
 - `workflow/dev-workflow.md` line 33: one sentence after the tripwire paragraph naming the three layers and pointing to the README. The rule stays "a denial means stop and ask". Line 74: an `/implement` run is expected to run in auto mode (ruling 2).
 - `checks/26-settings-templates.sh` (new): both templates parse as JSON and carry the deny entries the README names.
 
-**Probe.** With `~/.ssh` denied, `git push` over an SSH remote fails inside the sandbox. Before settling the template, check the remotes on the Mac (`git remote -v`). If they are SSH, either add `git push` and `git fetch` to `sandbox.excludedCommands` or move the remotes to HTTPS with the credential helper. Pick whichever the probe shows working.
+**Probe, answered 2026-11-24.** The ERP repo's remote on the Mac is HTTPS (`https://github.com/...`), so pushes don't read `~/.ssh` and the deny costs nothing there. No `excludedCommands` entry for git is planned. One thing the answer doesn't cover: an HTTPS push takes its token from the macOS keychain, and whether the keychain helper works inside the sandbox is checked by the first item of the test below. If it fails, `git push` and `git fetch` go into `sandbox.excludedCommands`.
 
-**Test.** In a fresh session with the template applied: `cat .env` is denied; a sandboxed `cat ~/.ssh/config` fails; `claude auto-mode config` prints the merged rules; in auto mode a `git push --force` is blocked and a normal push to `main` goes through; one light-path change lands end to end.
+**Test.** In a fresh session with the template applied: `cat .env` is denied; a sandboxed `cat ~/.ssh/config` fails; `claude auto-mode config` prints the merged rules; a sandboxed `git fetch` and a normal push to `main` go through (the keychain check); in auto mode a `git push --force` is blocked; one light-path change lands end to end.
 
 ### 2. Hooks instead of instructions
 
@@ -86,7 +86,9 @@ Alternative that lost: a git `pre-push` hook running the full suite. It fires at
 
 Files: `scripts/suite_tripwire.py`, `tests/test_suite_tripwire.py`, `tests/payloads/` (SubagentStop and Stop payloads), `checks/32-suite-tripwire.sh`, `install.sh` step 6 (copy the script), README "Hooks" (three new entries), `.claude/checks.json` for this repo (`full` is `./check.sh`), `templates/project-settings.json`, workflow lines 101-102 (one clause: the hooks enforce this where they are on).
 
-**Probe.** Do hooks run in a cloud session when the environment's setup script installs the scripts into the container's `~/.claude` and the repo's `.claude/settings.json` names them? If yes, the context guard, the frozen tripwire and the suite tripwire all start working in the cloud, and workflow lines 123 and 169 ("cloud sessions have no such hooks") change. If no, those lines stay.
+**Probe.** Do hooks named in a repo's `.claude/settings.json` fire in a cloud session? If yes, the context guard, the frozen tripwire and the suite tripwire can all run in the cloud from scripts kept in the repo, and workflow lines 123 and 169 ("cloud sessions have no such hooks") change. If no, those lines stay.
+
+How it runs: one commit on `claude/determined-wozniak-5pxpr5` adds `.claude/settings.json` and `.claude/hooks/probe.sh` (marked `# DISPOSABLE: cloud-hooks probe, until the answer is recorded`). The script appends the event name to a log file in the OS temp directory and is wired to SessionStart, UserPromptSubmit, PostToolUse on Bash, SubagentStop and Stop, called through `$CLAUDE_PROJECT_DIR`. A second cloud session starts on that branch with one prompt: run one shell command, start one Explore subagent, print the log file, change nothing. Its transcript shows which events fired. Then the commit is reverted and the second session archived. The answer, not the code, goes into this plan.
 
 **Test.** `tests/test_suite_tripwire.py` drives the script with recorded payloads, the same way `tests/test_frozen_tripwire.py` does, and asserts stdout and exit code for: no config, green, red (exit 2), third block (exit 0 with message), unchanged tree (skipped). Then by hand in a scratch repo: break a test, watch a builder subagent get held at SubagentStop.
 
@@ -161,13 +163,13 @@ Scope is this repo only (ruling 1). Each step is its own commit on `main`, with 
 
 1. Context guard error message (hook audit). One script, one test.
 2. The README paragraph on cloud environments (gap 6). The environment itself is already on Limited.
-3. Settings templates, README "Guardrails", check 26 (gap 1). Run the SSH probe first. You merge the user template into `~/.claude/settings.json` and test in a fresh session.
+3. Settings templates, README "Guardrails", check 26 (gap 1). You merge the user template into `~/.claude/settings.json` and test in a fresh session.
 4. Suite tripwire: script, tests, check 32, installer, README, this repo's `.claude/checks.json` (gap 2). Run the cloud-hooks probe here.
 5. CI red-`main` job and the project CI template (gap 3).
 6. One batch of prose: workflow lines 33, 37, 74, 76, 97, 101-102, 108-112, 142, 147, and 123/169 if the probe says so; the changeable-software amendment; CONTEXT.md term. Then build the cloud skill, run the evals, re-sync both account skills (gaps 1, 2, 3, 4, 5, 7).
 7. You run `/doctor prompt-audit` in a fresh session (gap 5).
 
-Step 3 waits on the SSH probe and step 6 on the cloud-hooks probe. Nothing waits on a decision.
+The SSH probe is answered. Step 6 waits on the cloud-hooks probe. Nothing waits on a decision.
 
 ## Execution: through dev-workflow itself
 
@@ -177,7 +179,7 @@ The build runs through `workflow/dev-workflow.md` end to end, with no shortcuts 
 |---|---|
 | Step 0, path check | Done in this plan: full path, complicated. The docs check above was the /research step. No file in this repo carries a `FROZEN CORE:` marker; the sealed measure is the routing evals (cases and pass rule, `evals/REGISTER.md`), which no ticket changes. |
 | 1. /grill-with-docs (you) | Done 2026-11-24: ten rulings, above. The new term "suite tripwire" goes into CONTEXT.md through /domain-modeling, in the prose batch. |
-| 2. /prototype detours | Next. The cloud-hooks probe runs in a cloud session, in a worktree subagent, code marked `# DISPOSABLE`, answer back in under 300 words. The SSH probe needs your Mac: a local session, or you run `git remote -v` and one sandboxed `git fetch` yourself. Both before /to-spec. |
+| 2. /prototype detours | The SSH probe is answered (HTTPS remotes). The cloud-hooks probe is next, run as described under gap 2, code marked `# DISPOSABLE`, before /to-spec. |
 | 3. Interfaces first | The one new interface is `.claude/checks.json` plus the suite tripwire's three events. Written before any ticket. DESIGN-IT-TWICE is skipped: no frozen core behind it and one caller. The tracer bullet is the Stop event running `./check.sh` in this repo. |
 | 4. /to-spec, spec check, /to-tickets (you), wave plan | One ticket per step in "Order" above. README and the workflow file are shared areas, so the tickets that touch them take turns; the prose batch (step 6) is last because it depends on every other ticket. |
 | 5. /implement (you, once) | Builders in worktrees, /tdd on the scripts and checks. The suite tripwire, the templates and the CI job get the high-risk builder: they are security controls. Prose and README get the low-risk builder. |
