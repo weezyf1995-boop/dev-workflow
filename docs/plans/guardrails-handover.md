@@ -13,11 +13,12 @@
 - `/to-spec` is done: the spec is issue #24 (`ready-for-agent`), written from the plan. Sami confirmed the four test seams: the hook-script process boundary, `./check.sh` check files, hand tests, and one routing eval run after the prose batch.
 - `/to-tickets` is done: ten tickets, #25 to #34, sub-issues of #24 with GitHub's native blocked-by links. #32 (hand tests) and #34 (`/doctor prompt-audit`) are Sami's (`ready-for-human`, a label created for this). The plan's step 4 is split three ways: tracer bullet #28 (Stop), #30 (SubagentStop and PostToolUse), #31 (cloud wiring). Step 3's hand test is #32.
 - Skipped: the spec check before `/to-tickets` never ran. It goes into the final report.
-- Nothing is implemented. No workflow, hook, settings, skill or CI file has changed.
+- The wave plan is `docs/plans/guardrails-waves.md`.
+- `/implement` ran on 2026-11-24. #25 to #31 are landed and closed; the run report is `docs/plans/guardrails-run-report.md`. Nothing in `workflow/`, `skills/`, `CONTEXT.md` or `cloud/` has changed yet.
 
 ## Next step
 
-The wave plan, then `/implement`. The frontier is #25, #26, #27, #28 and #29. #26, #27, #28 and #29 all edit the README, so they take turns, and #25 can run beside any of them.
+Sami does #32 (hand tests, including one real subagent-report payload in a cloud session) and deletes the remote branch `scratch/red-main-test`. Then #33, the prose batch, which folds the run report's findings into the plan first. Then Sami's #34.
 
 ## Rules that hold
 
