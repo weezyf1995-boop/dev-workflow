@@ -89,10 +89,10 @@ One table holds every model and effort; every other passage in the workflow, the
 |---|---|---|
 | Coordinator | opus (settings value `"model": "opus"`) | high |
 | High-risk builder | opus | medium |
-| Low-risk builder | sonnet | medium |
-| Standards reviewer | the model of the builder's risk row | medium |
-| Spec reviewer | sonnet; opus when the ticket touches core domain logic, stored data, parsing, time, money or auth | medium |
-| Helper subagent (exploration, /research, /prototype, DESIGN-IT-TWICE drafts, the spec check, the spec-drift pass) | sonnet | medium |
+| Low-risk builder | sonnet | high |
+| Standards reviewer | the model of the builder's risk row | the effort of the builder's risk row |
+| Spec reviewer | sonnet; opus when the ticket touches core domain logic, stored data, parsing, time, money or auth | high on sonnet, medium on opus |
+| Helper subagent (exploration, /research, /prototype, DESIGN-IT-TWICE drafts, the spec check, the spec-drift pass) | sonnet | high |
 | Fallback | fable | high |
 
 - Risk rule: a ticket that touches stored data, parsing, imports, exports, time zones, money or auth gets the high-risk builder; narrow UI and copy get the low-risk builder. The same rule picks the Standards reviewer's model.
