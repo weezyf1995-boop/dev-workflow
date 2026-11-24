@@ -18,7 +18,7 @@
 
 ## Next step
 
-Sami does #32 (hand tests, including one real subagent-report payload in a cloud session) and deletes the remote branch `scratch/red-main-test`. Then #33, the prose batch, which folds the run report's findings into the plan first. Then Sami's #34.
+Sami does #32 (hand tests, including one real subagent-report payload in a cloud session) and deletes the remote branch `scratch/red-main-test`. Both are in the wizard `docs/plans/guardrails-hand-tests.sh`: run it on the Mac from the dev-workflow clone, with every Claude session closed. It posts the results to #32. Delete the wizard once #32 is closed. Then #33, the prose batch, which folds the run report's findings into the plan first. Then Sami's #34.
 
 ## Rules that hold
 
