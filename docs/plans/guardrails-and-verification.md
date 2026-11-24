@@ -19,7 +19,7 @@ Path check (changeable-software): full path. The change touches security control
 9. **Secrets deny list.** Deny `.env`, `.env.local`, `.env.*.local` and `.env.production`. `.env.example` stays readable.
 10. **changeable-software.** Amend the skill's "Where the answers live" (owner's amendment, dated); no second local override in the workflow.
 
-Still open, and not yours to decide: the cloud-hooks probe.
+Nothing is open. The cloud-hooks probe was answered on 2026-11-24: yes (gap 2).
 
 ## What the docs say (verified 2026-11-23, code.claude.com/docs/en, Claude Code 2.1.331 current)
 
@@ -86,9 +86,28 @@ Alternative that lost: a git `pre-push` hook running the full suite. It fires at
 
 Files: `scripts/suite_tripwire.py`, `tests/test_suite_tripwire.py`, `tests/payloads/` (SubagentStop and Stop payloads), `checks/32-suite-tripwire.sh`, `install.sh` step 6 (copy the script), README "Hooks" (three new entries), `.claude/checks.json` for this repo (`full` is `./check.sh`), `templates/project-settings.json`, workflow lines 101-102 (one clause: the hooks enforce this where they are on).
 
-**Probe.** Do hooks named in a repo's `.claude/settings.json` fire in a cloud session? If yes, the context guard, the frozen tripwire and the suite tripwire can all run in the cloud from scripts kept in the repo, and workflow lines 123 and 169 ("cloud sessions have no such hooks") change. If no, those lines stay.
+**Probe, answered 2026-11-24: yes.** Hooks named in a repo's `.claude/settings.json` fire in a cloud session (Claude Code 2.1.331, environment "dev-workflow"), with no trust prompt and nothing added to the environment.
 
-How it runs: one commit on `claude/determined-wozniak-5pxpr5` adds `.claude/settings.json` and `.claude/hooks/probe.sh` (marked `# DISPOSABLE: cloud-hooks probe, until the answer is recorded`). The script appends the event name to a log file in the OS temp directory and is wired to SessionStart, UserPromptSubmit, PostToolUse on Bash, SubagentStop and Stop, called through `$CLAUDE_PROJECT_DIR`. A second cloud session starts on that branch with one prompt: run one shell command, start one Explore subagent, print the log file, change nothing. Its transcript shows which events fired. Then the commit is reverted and the second session archived. The answer, not the code, goes into this plan.
+| Event | Fired | Evidence in the probe log |
+|---|---|---|
+| SessionStart | yes | one entry, before the first prompt |
+| UserPromptSubmit | yes | one entry for the prompt, and one more when the subagent's report came back to the coordinator |
+| PostToolUse on `Bash` | yes | one entry after the shell command; none for the Agent call, so the matcher holds |
+| SubagentStop | yes | one entry when the Explore subagent finished |
+| Stop | yes | one entry at the end of the turn |
+
+`$CLAUDE_PROJECT_DIR` was set to the repo root for every event, so a hook can call a script kept in the repo. The scripts ran as root with `TMPDIR` unset (temp is `/tmp`).
+
+What follows:
+
+- The context guard, the frozen tripwire and the suite tripwire can run in the cloud from scripts kept in the repo and wired in `templates/project-settings.json`. `~/.claude/scripts/` doesn't exist there, so the project template calls them through `$CLAUDE_PROJECT_DIR`, and a project repo carries its own copy of the scripts.
+- Workflow lines 123 and 169 change in the prose batch. Line 123: cloud sessions get the same hooks when the repo's `.claude/settings.json` names them and the scripts are in the repo; without that, Claude keeps the 400k stop itself. Line 169: the same condition in place of "There are no context hooks". Relaying by scheduled task stays.
+- Workflow line 33 and README line 90 ("doesn't cover cloud sessions") change on the same condition, for the frozen tripwire.
+- A UserPromptSubmit hook also fires when a subagent hands back, with no person typing. The context guard's prompt refusal past 400k has to let that through, or a coordinator past 400k can't receive its own builders' reports. One case in `tests/test_context_guard.py`, in the ticket that wires the cloud hooks.
+- SubagentStop fired a second time, two seconds after Stop, though the session started one subagent. Something in the harness counts as a subagent. The suite tripwire's rule (run `touched` only when the checkout has changes against its base) already lets that pass, and its tests get a payload for it.
+- Not tested: whether exit 2 or `decision: "block"` blocks in the cloud the way the docs say. The probe hook only logged. The suite tripwire's hand test (below) runs once in a cloud session to cover it.
+
+How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings.json` and `.claude/hooks/probe.sh`, which appended the event name to a log in `/tmp`. A second cloud session on that branch ran one shell command and one Explore subagent, then printed the log. The commit is reverted (`6ebf678`), neither commit reached `main`, and the second session is archived.
 
 **Test.** `tests/test_suite_tripwire.py` drives the script with recorded payloads, the same way `tests/test_frozen_tripwire.py` does, and asserts stdout and exit code for: no config, green, red (exit 2), third block (exit 0 with message), unchanged tree (skipped). Then by hand in a scratch repo: break a test, watch a builder subagent get held at SubagentStop.
 
@@ -164,12 +183,12 @@ Scope is this repo only (ruling 1). Each step is its own commit on `main`, with 
 1. Context guard error message (hook audit). One script, one test.
 2. The README paragraph on cloud environments (gap 6). The environment itself is already on Limited.
 3. Settings templates, README "Guardrails", check 26 (gap 1). You merge the user template into `~/.claude/settings.json` and test in a fresh session.
-4. Suite tripwire: script, tests, check 32, installer, README, this repo's `.claude/checks.json` (gap 2). Run the cloud-hooks probe here.
+4. Suite tripwire: script, tests, check 32, installer, README, this repo's `.claude/checks.json` (gap 2). The project template wires all three hook scripts for cloud sessions (probe: yes).
 5. CI red-`main` job and the project CI template (gap 3).
-6. One batch of prose: workflow lines 33, 37, 74, 76, 97, 101-102, 108-112, 142, 147, and 123/169 if the probe says so; the changeable-software amendment; CONTEXT.md term. Then build the cloud skill, run the evals, re-sync both account skills (gaps 1, 2, 3, 4, 5, 7).
+6. One batch of prose: workflow lines 33, 37, 74, 76, 97, 101-102, 108-112, 142, 147, 123 and 169 (the probe said yes); the changeable-software amendment; CONTEXT.md term. Then build the cloud skill, run the evals, re-sync both account skills (gaps 1, 2, 3, 4, 5, 7).
 7. You run `/doctor prompt-audit` in a fresh session (gap 5).
 
-The SSH probe is answered. Step 6 waits on the cloud-hooks probe. Nothing waits on a decision.
+Both probes are answered. Nothing waits on a probe or a decision.
 
 ## Execution: through dev-workflow itself
 
@@ -179,7 +198,7 @@ The build runs through `workflow/dev-workflow.md` end to end, with no shortcuts 
 |---|---|
 | Step 0, path check | Done in this plan: full path, complicated. The docs check above was the /research step. No file in this repo carries a `FROZEN CORE:` marker; the sealed measure is the routing evals (cases and pass rule, `evals/REGISTER.md`), which no ticket changes. |
 | 1. /grill-with-docs (you) | Done 2026-11-24: ten rulings, above. The new term "suite tripwire" goes into CONTEXT.md through /domain-modeling, in the prose batch. |
-| 2. /prototype detours | The SSH probe is answered (HTTPS remotes). The cloud-hooks probe is next, run as described under gap 2, code marked `# DISPOSABLE`, before /to-spec. |
+| 2. /prototype detours | The SSH probe is answered (HTTPS remotes). The cloud-hooks probe is answered (yes, gap 2) and its disposable code is reverted. /to-spec is next. |
 | 3. Interfaces first | The one new interface is `.claude/checks.json` plus the suite tripwire's three events. Written before any ticket. DESIGN-IT-TWICE is skipped: no frozen core behind it and one caller. The tracer bullet is the Stop event running `./check.sh` in this repo. |
 | 4. /to-spec, spec check, /to-tickets (you), wave plan | One ticket per step in "Order" above. README and the workflow file are shared areas, so the tickets that touch them take turns; the prose batch (step 6) is last because it depends on every other ticket. |
 | 5. /implement (you, once) | Builders in worktrees, /tdd on the scripts and checks. The suite tripwire, the templates and the CI job get the high-risk builder: they are security controls. Prose and README get the low-risk builder. |

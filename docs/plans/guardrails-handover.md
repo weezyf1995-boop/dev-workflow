@@ -9,13 +9,12 @@
 - The grill is done. Sami took all ten recommendations; they are the "Rulings" section of the plan and are not open for re-litigation.
 - The SSH probe is answered: the Mac's remotes are HTTPS, so denying `~/.ssh` costs nothing. Whether the keychain helper works inside the sandbox is checked later, in gap 1's test.
 - The cloud environment "dev-workflow" is already on Limited network access.
+- The cloud-hooks probe is answered: yes. Repo hooks fire in cloud sessions for all five events tested. The detail and what follows from it are under gap 2 of the plan. The probe commit is reverted and never reached `main`.
 - Nothing is implemented. No workflow, hook, settings, skill or CI file has changed.
 
 ## Next step
 
-1. Run the cloud-hooks probe, as written under gap 2 of the plan ("How it runs"). It was approved and not started. Use the new session's own working branch for the disposable commit, start one second cloud session on that branch, read its transcript, revert the commit without force-pushing, archive the second session.
-2. Record the answer in the plan (gap 2's Probe paragraph, and whether workflow lines 123 and 169 change), commit and push to `main`.
-3. Stop and name `/to-spec` for Sami. After it: the spec check, `/to-tickets`, the wave plan, then `/implement`, following the plan's "Execution" table.
+Sami runs `/to-spec`. After it: the spec check, `/to-tickets`, the wave plan, then `/implement`, following the plan's "Execution" table.
 
 ## Rules that hold
 
