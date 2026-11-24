@@ -22,11 +22,14 @@ On any coding request, run changeable-software's path check and Cynefin classifi
 
 - Light path (about one file, no new boundary, one-commit revert), unless a hard disqualifier applies. changeable-software says: "If the change touches a frozen core (one list, defined in step 1) or an external boundary — an external API, or data you cannot regenerate — take the full path even if it is four lines. Size is not the risk; blast radius is." Otherwise skip the flow entirely. Make the change, run feedback, run the checklist's "Always" block. Nobody grills a typo. The step 1 in that quote is changeable-software's, and its frozen-core list includes money movement and authentication. A change to the shape of persisted state (a migration, a stored file format, a queue payload, a wire schema) also forces the full path, because reverting the commit does not revert the data already written; a cache that can be rebuilt from source does not count.
 - Chaotic (broken right now): /diagnosing-bugs. Stabilise, then understand.
+- A bug or flake that has come back twice or more: an architecture question, not another patch. Diagnose it with /diagnosing-bugs, then take the structure that keeps producing it to /improve-codebase-architecture.
 - Clear: main flow, no prototype detour.
 - Complicated (a knowledge gap): /research first, then main flow at /grill-with-docs.
 - Complex (answer only visible by trying): main flow, and the prototype detour is mandatory before /to-spec.
 - Too big and foggy to hold in one session: /wayfinder, which merges at /to-spec. Never for a well-scoped feature.
 - Incoming bugs or requests the user didn't write: /triage, then /implement. Never triage tickets /to-tickets made.
+
+Say the route in the reply by name (the skill, or light or full path), even when you stop before starting it because something is missing. The user should see which rule fired.
 
 Name any frozen core or sealed measure here. Either one forces the full path regardless of size.
 
