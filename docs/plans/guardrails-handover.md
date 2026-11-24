@@ -15,7 +15,7 @@
 - Skipped: the spec check before `/to-tickets` never ran. It goes into the final report.
 - The wave plan is `docs/plans/guardrails-waves.md`.
 - `/implement` ran on 2026-11-24. #25 to #31 are landed and closed; the run report is `docs/plans/guardrails-run-report.md`. `workflow/`, `skills/`, `CONTEXT.md` and `cloud/` changed in #33.
-- #32 (hand tests) is closed. Its three comments hold every result: the cloud checks, the local checks, and the two follow-ups. All pass except one: a real subagent report does not reach the context guard as a `<task-notification>` block. That fix is #36 (`ready-for-agent`, sub-issue of #24, not blocking #33).
+- #32 (hand tests) is closed. Its three comments hold every result: the cloud checks, the local checks, and the two follow-ups. All pass except one: a real subagent report does not reach the context guard as a `<task-notification>` block. That fix was #36, now landed.
 - Both scratch branches are deleted and the hand-test scripts are removed from the repo.
 - The light-path hand test landed `0109dd0` (README: why a Claude API key can't be a network secret), which clears that debt line from the run report.
 
@@ -35,7 +35,7 @@ The detail is on #32. In short:
 
 #33, the prose batch, is landed and closed; its report is the last section of `docs/plans/guardrails-run-report.md`. The routing evals ran against the baseline: 6 green, 3 flaky, 1 red, with one case down a colour (frozen-four-lines, explained in the report).
 
-#36 is still open and runs alone: its wave plan is the "Second run" section of `docs/plans/guardrails-waves.md`, and the local payload it needed is logged on the ticket.
+#36 is landed and closed. The context guard passes both logged report shapes and refuses the queued-notifications notice and a message from another session past the stop. This repo holds no cloud copy of the guard (`.claude/hooks/` doesn't exist here), so that criterion comes down to project repos refreshing their copies, as the README says.
 
 Then Sami's: re-sync the two account skills (`cloud/dev-workflow`, `skills/changeable-software`), and #34. Two follow-ups from #32 have no ticket yet: `github.com` in the user template's sandbox network settings, and a README line that the sandbox block does nothing in a cloud session.
 

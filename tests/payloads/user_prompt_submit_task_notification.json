@@ -1,8 +1,0 @@
-{
-  "session_id": "8d2e4b1c-0f3a-4c6e-b7d9-1a5f3e2c9b40",
-  "transcript_path": "/root/.claude/projects/-home-user-project/8d2e4b1c-0f3a-4c6e-b7d9-1a5f3e2c9b40.jsonl",
-  "cwd": "/home/user/project",
-  "permission_mode": "default",
-  "hook_event_name": "UserPromptSubmit",
-  "prompt": "<task-notification>\n<task-id>a4d637298cda5d622</task-id>\n<status>completed</status>\n<summary>Agent \"Build ticket #12\" completed</summary>\n<result>Choices: kept the parser in one module.\n\nTests: 14 pass. Commit 1a2b3c4 on worktree-agent-a4d637298cda5d622.</result>\n</task-notification>"
-}

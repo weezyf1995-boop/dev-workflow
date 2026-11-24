@@ -5,21 +5,22 @@ Events:
   UserPromptSubmit: past WARN, tell the user and brief Claude once to relay at the next phase boundary
     (or the next task boundary when no workflow step is under way). Past HIGH, the stop: a prompt is
     refused unless it is `relay`, a housekeeping slash command, a `frozen override` (the frozen
-    tripwire's, which starts no new work), a background subagent's report coming back (a prompt
-    that is one <task-notification> block), or starts with `override`, which lets the
-    session run on for OVERRIDE_SPAN more tokens before the stop returns.
+    tripwire's, which starts no new work), a background subagent's report coming back (see
+    subagent_report), or starts with `override`, which lets the session run on for OVERRIDE_SPAN
+    more tokens before the stop returns.
   PreToolUse on Agent/Task: past HIGH (and not overridden), deny new subagents so a long run relays
     at its next ticket boundary.
   PostToolUse on Bash: nudge after oversized output.
   SessionStart on resume/fork: cold-cache warning.
 An internal error still exits 0, so a broken guard never blocks work, but it prints a one-line
 systemMessage saying the guard failed. Malformed stdin and unknown events stay silent."""
-import json, os, sys
+import json, os, re, sys
 
 WARN, HIGH = 200_000, 400_000   # tokens in context (1M window; baseline is 30-100k)
 OVERRIDE_SPAN = 100_000         # how much further an `override` lets a session run past the stop
 BIG_OUTPUT = 8_000              # characters of tool output
-NOTIFY_OPEN, NOTIFY_CLOSE = "<task-notification>", "</task-notification>"  # a subagent's report
+TASK_OPEN, TASK_CLOSE = "<task-notification>", "</task-notification>"
+HANDBACK = re.compile(r'<agent-message from="[^"\n]*">\n\[Subagent hand-back\][^\n]*((\n  [^\n]*)|\n)*\n</agent-message>')
 STATE = os.path.expanduser("~/.claude/state")
 # Slash commands that tidy up or hand off rather than start new work; they pass the stop.
 HOUSEKEEPING = {"clear", "compact", "handoff", "rewind", "recap", "usage", "context", "cost", "status",
@@ -79,10 +80,21 @@ def overridden(session, ctx):
 
 def subagent_report(prompt):
     """True when the prompt is a background subagent's report coming back, not something typed.
-    The hook payload has no field for this (hooks docs, 2026-11-24), so the marker is the text:
-    the harness delivers the report as a turn that is one <task-notification> block, nothing after."""
-    prompt = prompt.strip()
-    return prompt.startswith(NOTIFY_OPEN) and prompt.endswith(NOTIFY_CLOSE)
+    The hook payload has no field for this (hooks docs, 2026-11-24), so the marker is the text.
+    Two shapes are logged in tests/payloads/, and the whole prompt must be one such block:
+      <task-notification> whose first child is <task-id> (Claude Code 2.1.330, local), with no
+        second opening or closing tag anywhere in it;
+      <agent-message from="..."> whose first line opens [Subagent hand-back] (2.1.331, cloud),
+        every line after that indented, as the harness indents a report.
+    Other blocks with the same tags are not reports and get the stop: the queued-notifications
+    notice (a <task-notification> with a <task-type>), and a message from another session
+    (an <agent-message> with no hand-back line). Either can lead to new work.
+    A report that quotes a task-notification tag is refused too; `override` covers that. Text
+    typed to copy a whole block exactly would pass, which costs nothing `override` doesn't."""
+    prompt = prompt.strip().replace("\r\n", "\n")
+    if re.match(re.escape(TASK_OPEN) + r"\s*<task-id>", prompt) and prompt.endswith(TASK_CLOSE):
+        return prompt.count(TASK_OPEN) == 1 and prompt.count(TASK_CLOSE) == 1
+    return bool(HANDBACK.fullmatch(prompt))
 
 
 def prompt_submit(d, ctx):

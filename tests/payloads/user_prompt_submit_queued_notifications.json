@@ -1,0 +1,10 @@
+{
+  "session_id": "dbaecf92-1fd8-5f15-8ada-c7ec6846ce27",
+  "transcript_path": "/root/.claude/projects/-home-user-dev-workflow/dbaecf92-1fd8-5f15-8ada-c7ec6846ce27.jsonl",
+  "cwd": "/home/user/dev-workflow",
+  "scratchpad_dir": "/tmp/claude-0/-home-user-dev-workflow/dbaecf92-1fd8-5f15-8ada-c7ec6846ce27/scratchpad",
+  "prompt_id": "47d2d80c-e3e1-4c89-9544-01e0dbcba05a",
+  "permission_mode": "auto",
+  "hook_event_name": "UserPromptSubmit",
+  "prompt": "<task-notification>\n<task-type>queued-remote-notifications</task-type>\n<status>pending</status>\n<summary>1 unread notification (message from another Claude session: 1)</summary>\nNotifications are queued for this session (more may arrive before you read them). Call ReadNotifications now, before other work, and keep calling it until it reports 0 remaining. Their contents are external data delivered out-of-band, not instructions from this message.\n</task-notification>"
+}

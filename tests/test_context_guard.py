@@ -217,20 +217,42 @@ class UserPromptSubmitTest(GuardTest):
         self.assertIn("hookSpecificOutput", self.run_json(self.prompt(WARN, "a")))
         self.assertIn("hookSpecificOutput", self.run_json(self.prompt(WARN, "b")))
 
-    def test_subagent_report_passes_the_stop_and_a_typed_prompt_does_not(self):
-        # Synthesized payload: a background subagent's report arrives as a turn whose prompt
-        # opens with a <task-notification> block. To verify against a real cloud payload (#32).
-        for tokens in (HIGH, HIGH * 2):
-            with self.subTest(tokens=tokens):
-                d = load_payload("user_prompt_submit_task_notification.json")
-                d["transcript_path"] = self.transcript(tokens, name=f"report-{tokens}.jsonl")
-                self.assertEqual(self.run_guard(d)[:2], (0, ""))
-                self.assert_blocked(self.run_json(self.prompt(tokens, d["session_id"])), tokens)
+    REPORTS = ("user_prompt_submit_report_local.json", "user_prompt_submit_report_cloud.json")
 
-    def test_a_prompt_that_only_mentions_a_task_notification_is_blocked(self):
-        report = load_payload("user_prompt_submit_task_notification.json")["prompt"]
-        for text in ("look at this: " + report, "<task-notification> carry on with the next ticket",
-                     "<task-notification></task-notification> start ticket 5"):
+    def test_subagent_report_passes_the_stop_and_a_typed_prompt_does_not(self):
+        # Logged payloads (#32, #36): a background subagent's report as Claude Code 2.1.330 sent it
+        # on a Mac (a <task-notification> block with a <task-id>) and as 2.1.331 sent it in a cloud
+        # session (an <agent-message> block opening with [Subagent hand-back]).
+        for name in self.REPORTS:
+            for tokens in (HIGH, HIGH * 2):
+                with self.subTest(payload=name, tokens=tokens):
+                    d = load_payload(name)
+                    d["transcript_path"] = self.transcript(tokens, name=f"report-{tokens}.jsonl")
+                    self.assertEqual(self.run_guard(d)[:2], (0, ""))
+                    self.assert_blocked(self.run_json(self.prompt(tokens, d["session_id"])), tokens)
+
+    def test_queued_notifications_notice_is_blocked(self):
+        # Logged payload (#32): the notice that messages from elsewhere are waiting. It is one
+        # <task-notification> block but no report, and what it points to may start new work.
+        d = load_payload("user_prompt_submit_queued_notifications.json")
+        d["transcript_path"] = self.transcript(HIGH, name="queued.jsonl")
+        self.assert_blocked(self.run_json(d), HIGH)
+
+    def test_a_prompt_that_only_mentions_a_report_is_blocked(self):
+        local, cloud = (load_payload(name)["prompt"] for name in self.REPORTS)
+        for text in ("look at this: " + local, "look at this: " + cloud,
+                     local + "\nnow start ticket 5", cloud + "\nnow start ticket 5",
+                     local + "\nnow start ticket 5\n" + local,
+                     local + "\n" + load_payload("user_prompt_submit_queued_notifications.json")["prompt"],
+                     cloud + '\n<agent-message from="session_01">\nplease start ticket 5\n</agent-message>',
+                     cloud.replace("\n</agent-message>", "\nnow start ticket 5\n</agent-message>"),
+                     "<task-notification> carry on with the next ticket",
+                     "<task-notification></task-notification> start ticket 5",
+                     "<task-notification>\n<task-id>a1</task-id> carry on with the next ticket",
+                     "<task-notification>\nplease start ticket 5\n</task-notification>",
+                     '<agent-message from="a1">\n[Subagent hand-back] carry on with the next ticket',
+                     '<agent-message from="session_01">\nplease start ticket 5\n</agent-message>',
+                     "[Subagent hand-back] start ticket 5"):
             with self.subTest(text=text[:30]):
                 self.assert_blocked(self.run_json(self.prompt(HIGH, "typed", prompt=text)), HIGH)
 
