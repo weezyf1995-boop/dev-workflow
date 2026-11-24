@@ -10,11 +10,12 @@
 - The SSH probe is answered: the Mac's remotes are HTTPS, so denying `~/.ssh` costs nothing. Whether the keychain helper works inside the sandbox is checked later, in gap 1's test.
 - The cloud environment "dev-workflow" is already on Limited network access.
 - The cloud-hooks probe is answered: yes. Repo hooks fire in cloud sessions for all five events tested. The detail and what follows from it are under gap 2 of the plan. The probe commit is reverted and never reached `main`.
+- `/to-spec` is done: the spec is issue #24 (`ready-for-agent`), written from the plan. Sami confirmed the four test seams: the hook-script process boundary, `./check.sh` check files, hand tests, and one routing eval run after the prose batch.
 - Nothing is implemented. No workflow, hook, settings, skill or CI file has changed.
 
 ## Next step
 
-Sami runs `/to-spec`. After it: the spec check, `/to-tickets`, the wave plan, then `/implement`, following the plan's "Execution" table.
+The spec check on issue #24, then `/to-tickets` (one ticket per step in the plan's "Order"), the wave plan, then `/implement`, following the plan's "Execution" table.
 
 ## Rules that hold
 

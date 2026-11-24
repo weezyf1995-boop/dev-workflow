@@ -198,9 +198,9 @@ The build runs through `workflow/dev-workflow.md` end to end, with no shortcuts 
 |---|---|
 | Step 0, path check | Done in this plan: full path, complicated. The docs check above was the /research step. No file in this repo carries a `FROZEN CORE:` marker; the sealed measure is the routing evals (cases and pass rule, `evals/REGISTER.md`), which no ticket changes. |
 | 1. /grill-with-docs (you) | Done 2026-11-24: ten rulings, above. The new term "suite tripwire" goes into CONTEXT.md through /domain-modeling, in the prose batch. |
-| 2. /prototype detours | The SSH probe is answered (HTTPS remotes). The cloud-hooks probe is answered (yes, gap 2) and its disposable code is reverted. /to-spec is next. |
+| 2. /prototype detours | The SSH probe is answered (HTTPS remotes). The cloud-hooks probe is answered (yes, gap 2) and its disposable code is reverted. |
 | 3. Interfaces first | The one new interface is `.claude/checks.json` plus the suite tripwire's three events. Written before any ticket. DESIGN-IT-TWICE is skipped: no frozen core behind it and one caller. The tracer bullet is the Stop event running `./check.sh` in this repo. |
-| 4. /to-spec, spec check, /to-tickets (you), wave plan | One ticket per step in "Order" above. README and the workflow file are shared areas, so the tickets that touch them take turns; the prose batch (step 6) is last because it depends on every other ticket. |
+| 4. /to-spec, spec check, /to-tickets (you), wave plan | /to-spec done 2026-11-24: issue #24. One ticket per step in "Order" above. README and the workflow file are shared areas, so the tickets that touch them take turns; the prose batch (step 6) is last because it depends on every other ticket. |
 | 5. /implement (you, once) | Builders in worktrees, /tdd on the scripts and checks. The suite tripwire, the templates and the CI job get the high-risk builder: they are security controls. Prose and README get the low-risk builder. |
 | 6. /code-review | With the changeable-software checklist and codebase-design as standards sources, per ticket, then land on `main` one at a time. |
 | Upkeep | Cloud skill rebuilt and the routing evals run once, after the prose batch. Settings merged by you between sessions, never mid-session. |
