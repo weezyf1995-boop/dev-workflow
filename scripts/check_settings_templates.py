@@ -4,7 +4,9 @@
 Usage: check_settings_templates.py [REPO_ROOT]
 
 The README's "Guardrails" section holds the one deny list, as a text block
-between the markers below. Both templates must carry every rule in it.
+between the markers below. Both templates must carry every rule in it. The
+project template must also wire the README "Hooks" entries (HOOKS below)
+through $CLAUDE_PROJECT_DIR, so cloud sessions run the hooks.
 Exit 0 when every check passes; exit 1 with one line per problem otherwise.
 """
 import json
@@ -17,6 +19,21 @@ END = "<!-- guardrails-deny-list:end -->"
 USER = "templates/user-settings.json"
 PROJECT = "templates/project-settings.json"
 TEMPLATES = (USER, PROJECT)
+# Where a project repo keeps its copies of the hook scripts, so cloud sessions can run them.
+PROJECT_HOOKS_DIR = "$CLAUDE_PROJECT_DIR/.claude/hooks/"
+# The hook entries of README "Hooks" as (event, matcher or None, script). The project template
+# must wire each one through PROJECT_HOOKS_DIR.
+HOOKS = (
+    ("SessionStart", "resume|fork", "context_guard.py"),
+    ("UserPromptSubmit", None, "context_guard.py"),
+    ("UserPromptSubmit", None, "frozen_tripwire.py"),
+    ("PreToolUse", "Agent|Task", "context_guard.py"),
+    ("PreToolUse", "Edit|Write|MultiEdit|NotebookEdit", "frozen_tripwire.py"),
+    ("PostToolUse", "Bash", "context_guard.py"),
+    ("PostToolUse", "Edit|Write|MultiEdit", "suite_tripwire.py"),
+    ("SubagentStop", None, "suite_tripwire.py"),
+    ("Stop", None, "suite_tripwire.py"),
+)
 
 
 def readme_rules(root):
@@ -99,6 +116,23 @@ def sandbox_problems(rel, data, rules):
     return problems
 
 
+def hook_problems(rel, data):
+    """Each README hook entry must sit in the project template on the same event and matcher,
+    calling the script from PROJECT_HOOKS_DIR."""
+    problems = []
+    hooks = data.get("hooks") if isinstance(data.get("hooks"), dict) else {}
+    for event, matcher, script in HOOKS:
+        found = any(
+            group.get("matcher") == matcher
+            and any(PROJECT_HOOKS_DIR + script in (h.get("command") or "")
+                    for h in group.get("hooks", []) if isinstance(h, dict))
+            for group in hooks.get(event, []) if isinstance(group, dict))
+        if not found:
+            where = event + (" (matcher " + matcher + ")" if matcher else "")
+            problems.append(rel + ": hooks." + where + " does not call " + PROJECT_HOOKS_DIR + script)
+    return problems
+
+
 def check(root):
     problems = []
     try:
@@ -121,6 +155,8 @@ def check(root):
                 problems.append(rel + ": " + where + " denies .env.example, which must stay readable")
         if rel == PROJECT and "autoMode" in data:
             problems.append(rel + ": carries autoMode, which project settings ignore; keep it in the user template")
+        if rel == PROJECT:
+            problems += hook_problems(rel, data)
     return problems
 
 
@@ -131,7 +167,7 @@ def main():
         print(p)
     if problems:
         return 1
-    print("settings templates carry the README deny list.")
+    print("settings templates carry the README deny list and the project template wires the hooks.")
     return 0
 
 

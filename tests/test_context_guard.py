@@ -171,6 +171,7 @@ class UserPromptSubmitTest(GuardTest):
                 self.assertNotIn("decision", out)
                 self.assertIn("relay.sh", out["hookSpecificOutput"]["additionalContext"])
                 self.assertIn("Do no other work first", out["hookSpecificOutput"]["additionalContext"])
+                self.assertIn("one-off scheduled task", out["hookSpecificOutput"]["additionalContext"])
 
     def test_a_word_merely_starting_with_relay_is_blocked(self):
         self.assert_blocked(self.run_json(self.prompt(HIGH, "relayout", prompt="relayout the grid")), HIGH)
@@ -215,6 +216,23 @@ class UserPromptSubmitTest(GuardTest):
     def test_once_per_session_is_per_session(self):
         self.assertIn("hookSpecificOutput", self.run_json(self.prompt(WARN, "a")))
         self.assertIn("hookSpecificOutput", self.run_json(self.prompt(WARN, "b")))
+
+    def test_subagent_report_passes_the_stop_and_a_typed_prompt_does_not(self):
+        # Synthesized payload: a background subagent's report arrives as a turn whose prompt
+        # opens with a <task-notification> block. To verify against a real cloud payload (#32).
+        for tokens in (HIGH, HIGH * 2):
+            with self.subTest(tokens=tokens):
+                d = load_payload("user_prompt_submit_task_notification.json")
+                d["transcript_path"] = self.transcript(tokens, name=f"report-{tokens}.jsonl")
+                self.assertEqual(self.run_guard(d)[:2], (0, ""))
+                self.assert_blocked(self.run_json(self.prompt(tokens, d["session_id"])), tokens)
+
+    def test_a_prompt_that_only_mentions_a_task_notification_is_blocked(self):
+        report = load_payload("user_prompt_submit_task_notification.json")["prompt"]
+        for text in ("look at this: " + report, "<task-notification> carry on with the next ticket",
+                     "<task-notification></task-notification> start ticket 5"):
+            with self.subTest(text=text[:30]):
+                self.assert_blocked(self.run_json(self.prompt(HIGH, "typed", prompt=text)), HIGH)
 
     def test_subagent_prompt_is_silent_at_any_size(self):
         for tokens in (WARN - 1, WARN, HIGH, HIGH * 2):

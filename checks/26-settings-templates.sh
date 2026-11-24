@@ -3,7 +3,8 @@
 # The list between the guardrails-deny-list markers in README.md is the one
 # source: both templates must deny every rule in it and back it in the sandbox,
 # neither may deny .env.example, and the project template may not carry
-# autoMode. Then run the checker's own tests (tests/test_settings_templates.py).
+# autoMode and must wire every README "Hooks" entry through
+# $CLAUDE_PROJECT_DIR/.claude/hooks/. Then run the checker's own tests (tests/test_settings_templates.py).
 # PYTHONDONTWRITEBYTECODE keeps __pycache__ out of the repo.
 
 set -u

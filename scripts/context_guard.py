@@ -5,8 +5,9 @@ Events:
   UserPromptSubmit: past WARN, tell the user and brief Claude once to relay at the next phase boundary
     (or the next task boundary when no workflow step is under way). Past HIGH, the stop: a prompt is
     refused unless it is `relay`, a housekeeping slash command, a `frozen override` (the frozen
-    tripwire's, which starts no new work), or starts with `override`, which lets the session run on
-    for OVERRIDE_SPAN more tokens before the stop returns.
+    tripwire's, which starts no new work), a background subagent's report coming back (a prompt
+    that is one <task-notification> block), or starts with `override`, which lets the
+    session run on for OVERRIDE_SPAN more tokens before the stop returns.
   PreToolUse on Agent/Task: past HIGH (and not overridden), deny new subagents so a long run relays
     at its next ticket boundary.
   PostToolUse on Bash: nudge after oversized output.
@@ -18,6 +19,7 @@ import json, os, sys
 WARN, HIGH = 200_000, 400_000   # tokens in context (1M window; baseline is 30-100k)
 OVERRIDE_SPAN = 100_000         # how much further an `override` lets a session run past the stop
 BIG_OUTPUT = 8_000              # characters of tool output
+NOTIFY_OPEN, NOTIFY_CLOSE = "<task-notification>", "</task-notification>"  # a subagent's report
 STATE = os.path.expanduser("~/.claude/state")
 # Slash commands that tidy up or hand off rather than start new work; they pass the stop.
 HOUSEKEEPING = {"clear", "compact", "handoff", "rewind", "recap", "usage", "context", "cost", "status",
@@ -26,7 +28,8 @@ HOUSEKEEPING = {"clear", "compact", "handoff", "rewind", "recap", "usage", "cont
 RELAY_STEPS = ("write a handoff file (the /handoff skill's format: state, next step, and for a build the "
                "wave plan, the rules block, the base commit and anything still in flight) to the OS temp "
                "directory, run ~/.claude/scripts/relay.sh <cwd> \"Continue from <handoff path>\", say so "
-               "in one line, and stop.")
+               "in one line, and stop. In a cloud session, where relay.sh doesn't exist, start the fresh "
+               "session with a one-off scheduled task carrying that prompt instead.")
 
 
 def k(n):
@@ -74,6 +77,14 @@ def overridden(session, ctx):
         return False
 
 
+def subagent_report(prompt):
+    """True when the prompt is a background subagent's report coming back, not something typed.
+    The hook payload has no field for this (hooks docs, 2026-11-24), so the marker is the text:
+    the harness delivers the report as a turn that is one <task-notification> block, nothing after."""
+    prompt = prompt.strip()
+    return prompt.startswith(NOTIFY_OPEN) and prompt.endswith(NOTIFY_CLOSE)
+
+
 def prompt_submit(d, ctx):
     session = d.get("session_id")
     os.makedirs(STATE, exist_ok=True)
@@ -85,6 +96,8 @@ def prompt_submit(d, ctx):
             done()
         if prompt.split()[:2] == ["frozen", "override"]:
             done()  # the frozen tripwire's override starts no new work; that hook answers it
+        if subagent_report(prompt):
+            done()  # a builder handing back; refusing it would strand the coordinator's own work
         if word == "relay":
             done({"systemMessage": f"Context {k(ctx)}. Claude is relaying to a fresh session.",
                   "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": (

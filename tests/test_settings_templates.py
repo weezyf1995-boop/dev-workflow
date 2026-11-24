@@ -49,9 +49,29 @@ USER = {
     "autoMode": {"environment": ["$defaults"], "hard_deny": ["$defaults"]},
 }
 
+
+def hook(script, timeout):
+    return {"type": "command", "timeout": timeout,
+            "command": 'python3 "$CLAUDE_PROJECT_DIR/.claude/hooks/' + script + '"'}
+
+
+# The user-level wiring from README "Hooks", called through $CLAUDE_PROJECT_DIR.
+HOOKS = {
+    "SessionStart": [{"matcher": "resume|fork", "hooks": [hook("context_guard.py", 5)]}],
+    "UserPromptSubmit": [{"hooks": [hook("context_guard.py", 5)]},
+                         {"hooks": [hook("frozen_tripwire.py", 10)]}],
+    "PreToolUse": [{"matcher": "Agent|Task", "hooks": [hook("context_guard.py", 5)]},
+                   {"matcher": "Edit|Write|MultiEdit|NotebookEdit", "hooks": [hook("frozen_tripwire.py", 10)]}],
+    "PostToolUse": [{"matcher": "Bash", "hooks": [hook("context_guard.py", 5)]},
+                    {"matcher": "Edit|Write|MultiEdit", "hooks": [hook("suite_tripwire.py", 120)]}],
+    "SubagentStop": [{"hooks": [hook("suite_tripwire.py", 600)]}],
+    "Stop": [{"hooks": [hook("suite_tripwire.py", 600)]}],
+}
+
 PROJECT = {
     "permissions": {"deny": list(DENY)},
     "sandbox": SANDBOX,
+    "hooks": HOOKS,
 }
 
 
@@ -100,6 +120,24 @@ class SettingsTemplatesTest(unittest.TestCase):
         self.user["sandbox"] = copy.deepcopy(SANDBOX)
         self.user["sandbox"]["filesystem"]["denyRead"].append("~/**/.env*")
         self.assertFails(self.run_check(), "user-settings.json", "~/**/.env*", ".env.example")
+
+    def test_project_template_missing_a_hook_entry_fails(self):
+        for event, groups in HOOKS.items():
+            for i, group in enumerate(groups):
+                script = group["hooks"][0]["command"].split("/")[-1].rstrip('"')
+                with self.subTest(event=event, script=script):
+                    self.project = copy.deepcopy(PROJECT)
+                    del self.project["hooks"][event][i]
+                    self.assertFails(self.run_check(), "project-settings.json", event, script)
+
+    def test_project_hook_called_from_home_fails(self):
+        self.project["hooks"]["Stop"][0]["hooks"][0]["command"] = (
+            'python3 "$HOME/.claude/scripts/suite_tripwire.py"')
+        self.assertFails(self.run_check(), "project-settings.json", "Stop", "suite_tripwire.py")
+
+    def test_project_hook_on_the_wrong_matcher_fails(self):
+        self.project["hooks"]["PreToolUse"][0]["matcher"] = "Bash"
+        self.assertFails(self.run_check(), "project-settings.json", "PreToolUse", "Agent|Task")
 
     def test_template_that_does_not_parse_fails(self):
         self.assertFails(self.run_check(project_text='{"permissions": {'),
