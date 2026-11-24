@@ -6,11 +6,20 @@ Lydia Hallie's talk moves steering, approving and checking from the person to th
 
 Path check (changeable-software): full path. The change touches security controls and the workflow's own rules. Classification: complicated, and the knowledge gap is closed below, except two points that only a probe can answer (marked **Probe**).
 
-## Decisions for Sami
+## Rulings (grilled 2026-11-24, Sami took every recommendation)
 
-1. **Risk review (gap 4).** Should tickets that touch a frozen core, money, auth or the shape of stored data land as normal and appear in the final report under "Read before deploying", with deployment hard-denied in auto mode until you have read them? Recommended: yes. It costs one read at the end of a run, parks nothing, and blocks no dependent ticket. The alternative is parking those tickets off `main` until you read them, which stalls every ticket behind them.
-2. **Frozen cores and the sandbox.** Should frozen files also get `sandbox.filesystem.denyWrite` entries? Recommended: no. A frozen-core edit is one revert away, the per-core mechanism and CI on `main` catch it on every machine, and a deny list would be a second copy of the `FROZEN CORE:` markers to keep in step. Saying yes covers shell writes, and the price is that `frozen override` stops working on its own: opening a core then needs you to edit settings and start a fresh session.
-3. **CI runner and who fixes a red `main`.** Recommended: GitHub-hosted Actions running the repo's suite on every push to `main`, with a second job that opens a `ready-for-agent` issue when `main` goes red, and the coordinator checking the run for its own landing commits before the final report. The alternative is the Claude GitHub Action fixing `main` unattended: it needs a Claude token stored as a repository secret and an agent with push rights to `main` that no session supervises, and the docs only describe it for pull requests.
+1. **Scope.** This build changes the dev-workflow repo only: the workflow file, templates, scripts and its own CI. Project repos adopt the templates one at a time afterwards, through a once-per-repo step the workflow names, after one full run here has shown the hooks behave.
+2. **Permission mode.** Auto mode is the stated default for an `/implement` run. Deny rules and the sandbox apply in every mode.
+3. **Risk review.** Tickets that touch a frozen core, money, auth or the shape of stored data land as normal and are listed in the final report under "Read before deploying". Deploys are hard-denied in auto mode. Nothing parks for review.
+4. **Frozen cores and the sandbox.** No `denyWrite` entries for frozen files. The tripwire, the per-core mechanism and CI on `main` stay the controls, and `frozen override` keeps working.
+5. **Red `main`.** GitHub-hosted Actions. A job opens a `ready-for-agent` issue when `main` goes red, and the coordinator reads the runs for its own landing commits before the final report. No Claude action with push rights.
+6. **Sandbox strictness.** `allowUnsandboxedCommands` starts `true`, with `hard_deny` on unsandboxed reads of `~/.ssh`, `~/.aws` and `.env` files. Tighten to `false` after two weeks of "Where I needed you" reports show which commands need `excludedCommands`.
+7. **Full suite on Stop.** The Stop hook runs the full suite only when `main` holds commits not yet recorded green, so it fires around landings and not after every edit.
+8. **A builder that can't go green.** Two blocks, then it is let through with a message naming the failure. The coordinator counts that as one failed build under the fallback rule.
+9. **Secrets deny list.** Deny `.env`, `.env.local`, `.env.*.local` and `.env.production`. `.env.example` stays readable.
+10. **changeable-software.** Amend the skill's "Where the answers live" (owner's amendment, dated); no second local override in the workflow.
+
+Still open, and not yours to decide: the two probes.
 
 ## What the docs say (verified 2026-11-23, code.claude.com/docs/en, Claude Code 2.1.331 current)
 
@@ -45,12 +54,12 @@ One fix: make the context guard's error path print a `systemMessage` the way the
 **Change.** Keep the installer rule. Ship two templates and document them.
 
 - `templates/user-settings.json` (new), merged by hand into `~/.claude/settings.json`:
-  - `permissions.deny`: `Read` and `Edit` for `.env`, `.env.*`, `**/secrets/**`, `~/.ssh/**`, `~/.aws/**`. Note in the README that `.env.*` also hides `.env.example`.
-  - `sandbox`: `enabled: true`, `credentials.files` denying `~/.ssh` and `~/.aws`, `filesystem.denyRead` for `.env` files, `allowUnsandboxedCommands: false`.
-  - `autoMode`: `environment` describing a single owner whose tickets land by fast-forward push to `main`; `allow` with `"$defaults"` plus that push; `hard_deny` with `"$defaults"` plus force-push, deleting a remote branch, deploying to production, `--no-verify`, and editing `~/.claude/settings.json` or the hook scripts.
+  - `permissions.deny`: `Read` and `Edit` for `.env`, `.env.local`, `.env.*.local`, `.env.production`, `**/secrets/**`, `~/.ssh/**`, `~/.aws/**`. `.env.example` stays readable (ruling 9).
+  - `sandbox`: `enabled: true`, `credentials.files` denying `~/.ssh` and `~/.aws`, `filesystem.denyRead` for the same `.env` files, `allowUnsandboxedCommands: true` to start (ruling 6).
+  - `autoMode`: `environment` describing a single owner whose tickets land by fast-forward push to `main`; `allow` with `"$defaults"` plus that push; `hard_deny` with `"$defaults"` plus force-push, deleting a remote branch, deploying to production, `--no-verify`, reading `~/.ssh`, `~/.aws` or a denied `.env` file outside the sandbox, and editing `~/.claude/settings.json` or the hook scripts.
 - `templates/project-settings.json` (new), copied to a project's `.claude/settings.json`: the same deny rules, because that file is the only one a cloud session reads. No `autoMode` block, since project scope is ignored.
 - `README.md`: a "Guardrails" section after "Hooks" with the three layers in the order they are checked, and what each one doesn't cover.
-- `workflow/dev-workflow.md` line 33: one sentence after the tripwire paragraph naming the three layers and pointing to the README. The rule stays "a denial means stop and ask".
+- `workflow/dev-workflow.md` line 33: one sentence after the tripwire paragraph naming the three layers and pointing to the README. The rule stays "a denial means stop and ask". Line 74: an `/implement` run is expected to run in auto mode (ruling 2).
 - `checks/26-settings-templates.sh` (new): both templates parse as JSON and carry the deny entries the README names.
 
 **Probe.** With `~/.ssh` denied, `git push` over an SSH remote fails inside the sandbox. Before settling the template, check the remotes on the Mac (`git remote -v`). If they are SSH, either add `git push` and `git fetch` to `sandbox.excludedCommands` or move the remotes to HTTPS with the credential helper. Pick whichever the probe shows working.
@@ -67,9 +76,9 @@ One fix: make the context guard's error path print a `systemMessage` the way the
 |---|---|---|
 | PostToolUse on `Edit\|Write\|MultiEdit` | `lint` on the edited file | exit 2: stderr goes to Claude (the edit already happened) |
 | SubagentStop | `touched`, only when the subagent's checkout has changes against its base, so reviewers and Explore agents pass untouched | exit 2: the builder can't finish until it is green |
-| Stop | `full`, only when the tree hash differs from the last green run recorded in `~/.claude/state` | exit 2: the session can't end on a red suite |
+| Stop | `full`, only when `main` holds commits whose tree is not yet recorded green in `~/.claude/state` (ruling 7) | exit 2: the session can't end with an unproven landing |
 
-Each blocking event gives up after two blocks for the same agent (it respects `stop_hook_active` and keeps a counter in `~/.claude/state`), then lets the stop through with a `systemMessage` naming the failure, so a test that can't pass doesn't loop forever. The coordinator still runs the full suite on the landing commit: the hook backs the instruction, it doesn't replace it.
+Each blocking event gives up after two blocks for the same agent (it respects `stop_hook_active` and keeps a counter in `~/.claude/state`), then lets the stop through with a `systemMessage` naming the failure, so a test that can't pass doesn't loop forever. The coordinator counts that message as one failed build under the fallback rule (workflow line 97, ruling 8). The coordinator still runs the full suite on the landing commit: the hook backs the instruction, it doesn't replace it.
 
 By CONTEXT.md this is a tripwire (local, bypassable). The mechanism is CI on `main` (gap 3). Add "suite tripwire" to CONTEXT.md through /domain-modeling.
 
@@ -85,7 +94,7 @@ Files: `scripts/suite_tripwire.py`, `tests/test_suite_tripwire.py`, `tests/paylo
 
 **Now.** This repo already has it: `.github/workflows/check.yml` runs `./check.sh` on every push, on Ubuntu and macOS. The workflow file doesn't ask for it anywhere. Line 76 and line 109 end the landing at "merge and push", and nobody reads the run.
 
-**Change** (as recommended in decision 3).
+**Change** (ruling 5).
 
 - Workflow line 76: after the push, the landing commit's CI run is part of the ticket. Before the final report the coordinator reads the runs for its landing commits (`gh run list --commit <sha>`). A red run is a failed landing: fix forward as a new ticket, or revert, and say which in the report.
 - Workflow step 0 of the main flow (line 37): once per repo, a CI workflow on push to `main` that runs the same command as `.claude/checks.json` `full`.
@@ -99,7 +108,7 @@ Files: `scripts/suite_tripwire.py`, `tests/test_suite_tripwire.py`, `tests/paylo
 
 **Now.** Line 107 says nothing in the loop waits on the user. Line 108 parks tickets that need a ruling. There is no review tier.
 
-**Change** (if decision 1 is yes). Workflow lines 108-112: a ticket built by the high-risk builder that touches a frozen core, money, auth or the shape of stored data lands as normal, and the final report lists it under "Read before deploying" with its commit. Deployment sits in `autoMode.hard_deny` (gap 1), so the read happens before anything irreversible. No parking, no new stop.
+**Change** (ruling 3). Workflow lines 108-112: a ticket built by the high-risk builder that touches a frozen core, money, auth or the shape of stored data lands as normal, and the final report lists it under "Read before deploying" with its commit. Deployment sits in `autoMode.hard_deny` (gap 1), so the read happens before anything irreversible. No parking, no new stop.
 
 **Test.** A routing eval case is not needed; the rule only changes the report. Check the next /implement run's final report by reading it.
 
@@ -110,18 +119,18 @@ Files: `scripts/suite_tripwire.py`, `tests/test_suite_tripwire.py`, `tests/paylo
 **Change.**
 
 - Line 142: the `## Design` section holds, per frozen core, its enforcing mechanism and its sealed measures, plus named debt. Which files are frozen or disposable is read from the markers. This extends the existing override on vocabulary (line 140).
-- `skills/changeable-software/SKILL.md` "Where the answers live" and the last "Structure" question in `references/review-checklist.md`: the same edit, as an owner's amendment with the date.
+- `skills/changeable-software/SKILL.md` "Where the answers live" and the last "Structure" question in `references/review-checklist.md`: the same edit, as an owner's amendment with the date (ruling 10).
 - Sami, once, in a fresh session: `/doctor prompt-audit` on `~/.claude/CLAUDE.md` and the workflow file, and apply her test to what it flags (keep only what Claude can't learn from the code).
 
 **Test.** `checks/23-frozen-core-list.sh` still passes. The routing evals (below).
 
 ### 6. Cloud environment settings
 
-**Now.** This repo's cloud environment ("dev-workflow") has unrestricted network access, no setup script and no network secrets. README line 67 mentions only the stop hook.
+**Now.** This repo's cloud environment ("dev-workflow") had unrestricted network access when the plan was written. It has no setup script, and one network secret, for `api.github.com`. README line 67 mentions only the stop hook.
 
 **Change.**
 
-- Set the environment to Limited network with package managers on, adding hosts only when a blocked request shows the need. The implementing session proposes it with `update_environment`; you approve the prompt.
+- Done on 2026-11-23: the environment is on Limited network with package managers and MCP server hosts allowed and no extra hosts. Add a host only when a blocked request shows the need.
 - README "Claude Code on the web": start every environment on Limited; put API keys in Network secrets, never in environment variables, which anything in the VM can read; a Claude API key can't be a network secret, so keep it out of cloud environments.
 - Your other environments (Default, OVH, NameQ Cloud, Pixel, Hip Hop Architect) are yours to check in their settings against the same two rules.
 
@@ -148,17 +157,17 @@ The evals cost model usage, so every workflow and skill edit lands in one batch 
 
 ## Order, smallest safe change first
 
-Each step is its own commit on `main`, with `./check.sh` green before the push. Settings are edited only between sessions (workflow line 130).
+Scope is this repo only (ruling 1). Each step is its own commit on `main`, with `./check.sh` green before the push. Settings are edited only between sessions (workflow line 130).
 
 1. Context guard error message (hook audit). One script, one test.
-2. Cloud environment to Limited, and the README paragraph (gap 6).
+2. The README paragraph on cloud environments (gap 6). The environment itself is already on Limited.
 3. Settings templates, README "Guardrails", check 26 (gap 1). Run the SSH probe first. You merge the user template into `~/.claude/settings.json` and test in a fresh session.
 4. Suite tripwire: script, tests, check 32, installer, README, this repo's `.claude/checks.json` (gap 2). Run the cloud-hooks probe here.
 5. CI red-`main` job and the project CI template (gap 3).
-6. One batch of prose: workflow lines 33, 37, 76, 101-102, 108-112, 142, 147, and 123/169 if the probe says so; the changeable-software amendment; CONTEXT.md term. Then build the cloud skill, run the evals, re-sync both account skills (gaps 1, 2, 3, 4, 5, 7).
+6. One batch of prose: workflow lines 33, 37, 74, 76, 97, 101-102, 108-112, 142, 147, and 123/169 if the probe says so; the changeable-software amendment; CONTEXT.md term. Then build the cloud skill, run the evals, re-sync both account skills (gaps 1, 2, 3, 4, 5, 7).
 7. You run `/doctor prompt-audit` in a fresh session (gap 5).
 
-Steps 3 and 6 wait on decisions 1 to 3. Steps 1, 2, 4 and 5 don't.
+Step 3 waits on the SSH probe and step 6 on the cloud-hooks probe. Nothing waits on a decision.
 
 ## Execution: through dev-workflow itself
 
@@ -167,8 +176,8 @@ The build runs through `workflow/dev-workflow.md` end to end, with no shortcuts 
 | Workflow step | For this change |
 |---|---|
 | Step 0, path check | Done in this plan: full path, complicated. The docs check above was the /research step. No file in this repo carries a `FROZEN CORE:` marker; the sealed measure is the routing evals (cases and pass rule, `evals/REGISTER.md`), which no ticket changes. |
-| 1. /grill-with-docs (you) | Against this file. It settles the three decisions. The new term "suite tripwire" goes into CONTEXT.md through /domain-modeling. |
-| 2. /prototype detours | The two probes (SSH remotes under the sandbox; hooks in a cloud session), each in a worktree subagent, code marked `# DISPOSABLE`, answer back in under 300 words, before /to-spec. |
+| 1. /grill-with-docs (you) | Done 2026-11-24: ten rulings, above. The new term "suite tripwire" goes into CONTEXT.md through /domain-modeling, in the prose batch. |
+| 2. /prototype detours | Next. The cloud-hooks probe runs in a cloud session, in a worktree subagent, code marked `# DISPOSABLE`, answer back in under 300 words. The SSH probe needs your Mac: a local session, or you run `git remote -v` and one sandboxed `git fetch` yourself. Both before /to-spec. |
 | 3. Interfaces first | The one new interface is `.claude/checks.json` plus the suite tripwire's three events. Written before any ticket. DESIGN-IT-TWICE is skipped: no frozen core behind it and one caller. The tracer bullet is the Stop event running `./check.sh` in this repo. |
 | 4. /to-spec, spec check, /to-tickets (you), wave plan | One ticket per step in "Order" above. README and the workflow file are shared areas, so the tickets that touch them take turns; the prose batch (step 6) is last because it depends on every other ticket. |
 | 5. /implement (you, once) | Builders in worktrees, /tdd on the scripts and checks. The suite tripwire, the templates and the CI job get the high-risk builder: they are security controls. Prose and README get the low-risk builder. |
