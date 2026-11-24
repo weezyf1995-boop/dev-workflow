@@ -93,6 +93,40 @@ The frozen tripwire denies an edit tool (Edit, Write, MultiEdit, NotebookEdit), 
 
 `relay.sh` opens the session through the Claude desktop app's `claude://code/new` link on macOS, and new sessions take the model set by `"model"` in the same file. Set it to the coordinator row's settings value in the [model table](workflow/dev-workflow.md#models), with that row's effort, and every session, including one opened by a relay, starts where the workflow wants it. Elsewhere, relay.sh prints the prompt to paste.
 
+## Guardrails
+
+Two settings templates keep secrets out of reach and block the actions that can't be undone. The installer doesn't copy them: you merge them by hand.
+
+- `templates/user-settings.json` goes into `~/.claude/settings.json`. Merge key by key rather than replacing the file: append its `permissions.deny` entries to yours, add its `sandbox` block (or its entries to your arrays), and add its `autoMode` block. Keep `"$defaults"` in every `autoMode` list, or the built-in rules in that list are lost. Merge between sessions, then run `claude auto-mode config` to see the merged rules.
+- `templates/project-settings.json` is copied to a project's `.claude/settings.json`. In a single-repo cloud session that file is the only settings file read (a multi-repo session takes only its plugin keys), so it carries the same deny rules and sandbox denies. It has no `autoMode` block, because Claude Code ignores `autoMode` in project settings.
+
+Both templates deny these, and `checks/26-settings-templates.sh` fails if either template lacks one, if either denies `.env.example`, or if the project template carries `autoMode`. Change this list and the templates together:
+
+<!-- guardrails-deny-list:start -->
+```text
+Read(.env)
+Edit(.env)
+Read(.env.local)
+Edit(.env.local)
+Read(.env.*.local)
+Edit(.env.*.local)
+Read(.env.production)
+Edit(.env.production)
+Read(**/secrets/**)
+Edit(**/secrets/**)
+Read(~/.ssh/**)
+Edit(~/.ssh/**)
+Read(~/.aws/**)
+Edit(~/.aws/**)
+```
+<!-- guardrails-deny-list:end -->
+
+`.env.example` stays readable. An action meets three layers, in this order:
+
+1. **Deny rules** (`permissions.deny`). Checked first among the permission rules, in every permission mode. A PreToolUse hook runs before them, but can't overturn a deny. They stop Claude's own file tools, and shell commands that name the file, such as `cat .env`. They don't stop a command that reads files without naming them (`grep -r`), or a script that opens the file itself.
+2. **The auto mode classifier** (`autoMode`, user template only). In auto mode it reviews each action no rule has settled, before it runs. `hard_deny` blocks force pushes, deleting a remote branch, deploying to production, `--no-verify`, reading `~/.ssh`, `~/.aws` or a denied `.env` file outside the sandbox, and editing `~/.claude/settings.json` or the hook scripts, even when you ask. `allow` lets a fast-forward push to `main` through. It does nothing in other permission modes, it never sees read-only actions and edits in the working directory (those are approved before it), and it is a model's judgement, so it can misread an action.
+3. **The sandbox** (`sandbox`). OS-level limits on a shell command while it runs. `credentials.files` blocks `~/.ssh` and `~/.aws`, and `filesystem.denyRead` blocks the `.env` files, for every sandboxed command, scripts and `grep -r` included. It doesn't cover Claude's own file tools, which the deny rules cover, or commands listed in `excludedCommands`. While `allowUnsandboxedCommands` is `true`, Claude can retry a failed command outside the sandbox, where none of this applies. It starts `true`, and is set to `false` once the "Where I needed you" reports show which commands need `excludedCommands`. The sandbox runs on macOS, Linux and WSL2 only.
+
 ## Worktree base
 
 By default Claude Code starts an isolated worktree from the repository's default branch, so a builder can begin on a commit that lacks the coordinator's unpushed work. The workflow guards against that: each builder brief names the base commit, and the builder stops if its worktree doesn't contain it. To stop it happening at all, set `worktree.baseRef` to `"head"` in `~/.claude/settings.json` (any settings file works), so new worktrees branch from your current local `HEAD`:

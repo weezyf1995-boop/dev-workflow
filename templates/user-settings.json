@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(.env)",
+      "Edit(.env)",
+      "Read(.env.local)",
+      "Edit(.env.local)",
+      "Read(.env.*.local)",
+      "Edit(.env.*.local)",
+      "Read(.env.production)",
+      "Edit(.env.production)",
+      "Read(**/secrets/**)",
+      "Edit(**/secrets/**)",
+      "Read(~/.ssh/**)",
+      "Edit(~/.ssh/**)",
+      "Read(~/.aws/**)",
+      "Edit(~/.aws/**)"
+    ]
+  },
+  "sandbox": {
+    "enabled": true,
+    "allowUnsandboxedCommands": true,
+    "credentials": {
+      "files": [
+        { "path": "~/.ssh", "mode": "deny" },
+        { "path": "~/.aws", "mode": "deny" }
+      ]
+    },
+    "filesystem": {
+      "denyRead": [
+        "~/**/.env",
+        "~/**/.env.local",
+        "~/**/.env.*.local",
+        "~/**/.env.production"
+      ]
+    }
+  },
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "Single owner: one person owns every repository worked on here. There are no pull requests and no other committers. Each ticket lands by a fast-forward push of its commits to main on the repository's own GitHub remote."
+    ],
+    "allow": [
+      "$defaults",
+      "Pushing to main is allowed when it is a fast-forward push of this session's own landing commits to the repository's own remote: that is how every ticket lands."
+    ],
+    "hard_deny": [
+      "$defaults",
+      "Never force-push to any branch: no --force, --force-with-lease, -f, or a refspec starting with +.",
+      "Never delete a remote branch: no git push --delete, no git push <remote> :<branch>, no API call that deletes a ref.",
+      "Never deploy to production, by any tool, script or CI trigger.",
+      "Never skip git hooks: no --no-verify, and no -n on git commit.",
+      "Never read ~/.ssh, ~/.aws, or a .env, .env.local, .env.*.local or .env.production file with a command that runs outside the sandbox. .env.example is fine.",
+      "Never edit ~/.claude/settings.json, the hook scripts in ~/.claude/scripts/, or the hook scripts a repository's .claude/settings.json runs."
+    ]
+  }
+}
