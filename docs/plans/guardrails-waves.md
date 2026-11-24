@@ -31,25 +31,14 @@ Base commit for wave 1: `97e47f0`. Written 2026-11-24, before the first builder.
 - **Prose:** plain and short, in the README's existing style.
 - **No pull requests.** Builders commit in their worktree and don't push. The coordinator lands on `main`.
 
-## Second run: #33 and #36 together
+## Second run: #36 alone
 
-Written 2026-11-24, after #32 closed. Base commit: `76f5b1f`. Sami asked for both at once.
+Written 2026-11-24, after #32 closed. #33 is being built in another session that started before this section was written, so it is not part of this run. Base commit: whatever `main` holds once #33 has landed.
 
 | Wave | Ticket | Blocked by | Areas touched | Builder |
 |---|---|---|---|---|
-| 1 | #36 Context guard recognises a real subagent report | none | context guard script, its tests, `tests/payloads/`, README "Hooks" (the context guard paragraph) | high risk: opus, medium (a security control that parses harness text) |
-| 1 | #33 Prose batch, cloud skill, routing evals | none left (#26, #29 and #32 are closed) | workflow file, `skills/changeable-software/`, CONTEXT.md, `cloud/`, `template.sha`, the plan, README (the frozen tripwire's cloud sentence) | low risk: sonnet, medium (owns the eval run) |
+| 1 | #36 Context guard recognises a real subagent report | none (start after #33 lands, to keep the README out of two hands) | context guard script, its tests, `tests/payloads/`, README "Hooks" (the context guard paragraph) | high risk: opus, medium (a security control that parses harness text) |
 
-**Critical path:** one ticket; neither blocks the other.
+The rules block above holds. Test payloads for #36 are the two logged on #36 and #32, trimmed of nothing but machine paths. #36 doesn't touch `workflow/`, `skills/`, CONTEXT.md, `cloud/` or `template.sha`.
 
-**Shared area, overridden by Sami.** Both edit the README, in different paragraphs. The first run showed separate README sections land cleanly. Land #36 first because it is small, then #33 rebases onto it and runs `./check.sh` on the result.
-
-**What #33 needs from #36.** Nothing landed. #33 records the payload finding in the plan (gap 2) and writes the cloud passages knowing the guard's fix is #36. If #36 lands first, #33 says so.
-
-**Not in either ticket.** Three #32 findings change files neither ticket owns, so #33 records them in the plan as named debt and the final report lists them for a ruling: `github.com` on the user template's sandbox allowlist, the project template's sandbox block doing nothing in the cloud, and the Alethia entries in Sami's user settings.
-
-The rules block above holds, with these changes for this run:
-
-- **#33 now owns** `workflow/dev-workflow.md`, `skills/`, CONTEXT.md, `cloud/` and `template.sha`. #36 doesn't touch them.
-- **`evals/`:** #33 runs the evals once and may add a results file. The cases, the pass rule and `evals/REGISTER.md` stay untouched.
-- **Test payloads for #36** are the two logged on #36 and #32, trimmed of nothing but machine paths.
+**Not in any ticket.** Three #32 findings change files no open ticket owns and wait for a ruling: `github.com` on the user template's sandbox allowlist, the project template's sandbox block doing nothing in the cloud, and the Alethia entries in Sami's user settings.

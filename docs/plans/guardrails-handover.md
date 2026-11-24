@@ -33,7 +33,7 @@ The detail is on #32. In short:
 
 ## Next step
 
-Sami asked on 2026-11-24 for #33 and #36 to run together. The wave plan is the "Second run" section of `docs/plans/guardrails-waves.md`; base commit `76f5b1f`. The local payload #36 needed is logged on #36. Run both through the ticket loop in `workflow/dev-workflow.md` (worktree builders, review, land on `main` one at a time, #36 first), then write the final report with "Read before deploying" and "Where I needed you". Then Sami's #34.
+#33 is being built in another session (started 2026-11-24). Once it lands, #36 runs alone: its wave plan is the "Second run" section of `docs/plans/guardrails-waves.md`, and the local payload it needed is logged on the ticket. Then Sami's #34.
 
 ## Rules that hold
 
