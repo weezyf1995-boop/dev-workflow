@@ -14,6 +14,10 @@ _Avoid_: Policy, guideline
 A local check that stops an honest mistake at the moment of action but can be bypassed.
 _Avoid_: Guard, gate, sandbox
 
+**Suite tripwire**:
+The tripwire that runs a repository's own checks, named in `.claude/checks.json`, at three moments: after an edit, when a builder subagent stops, and when the session stops after a landing.
+_Avoid_: Test hook, suite gate, CI
+
 **Mechanism**:
 A check that fails the suite or the server whoever acts and on whichever machine.
 _Avoid_: Gate, guard, enforcement hook

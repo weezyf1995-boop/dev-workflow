@@ -110,3 +110,35 @@ No ticket touches money, stored data or a frozen core.
   - check 26's hook list is a second copy of README "Hooks";
   - timeouts are unchecked;
   - each project's copies of the hook scripts can go stale.
+
+## #33, the prose batch (run of 2026-11-24, second cloud session)
+
+One ticket, one builder in a worktree (low-risk builder), two reviewers, one fix round, landed on `main`.
+
+**Choices.**
+- The guardrail-layers sentence is its own short paragraph after the frozen tripwire paragraph, and says that a cloud session has the deny rules only.
+- "Read before deploying" covers any ticket that touches a frozen core, money, auth or the shape of stored data, whichever builder built it.
+- The changeable-software amendment edits the original sentence in place. The skill still puts vocabulary in `CLAUDE.md`; the workflow's override on vocabulary stays the only override (ruling 10).
+- Findings about the Waves section are in the plan only ("Findings with no home in this batch").
+
+**Reviews.** Standards: fail, two blocking (the skill's amendment contradicted the sentence above it; the layers sentence was unconditional though a cloud session has no classifier and no sandbox). Spec: fail, two blocking ("the sandbox applies in every mode" was false; two plan lines overstated what #32 and the run report recorded). All fixed in one round, re-read by the coordinator: prose only.
+
+**Routing evals.** Against the baseline (5 green, 3 flaky, 2 red): 6 green, 3 flaky, 1 red, in `evals/results/latest.txt`.
+- Up: complicated and spec-check, flaky to green. recurring-flake, red to flaky.
+- Same: chaotic red, migration-four-lines flaky (1/3, was 2/3).
+- Down: frozen-four-lines, green to flaky (2/3). The failing run made no edit, named the frozen core and asked for a ruling, but never wrote the words "full path". The routing was right and the marker was missed. The new sentences beside the frozen tripwire paragraph end on "stop and ask", which may pull a reply towards "your ruling" and away from "full path". One run can't tell that from noise.
+- The cases and the pass rule are unchanged.
+- How it ran: in the cloud container, with `CLAUDE_CONFIG_DIR` pointing at a folder holding the edited workflow, the edited skill and the plugin's skills, since `install.sh` can't run here. No hooks were on.
+
+**Read before deploying.** Nothing. The ticket is prose and touches no frozen core, money, auth or stored data.
+
+**Where I needed you.**
+- No rulings, permission prompts, denials or hook blocks.
+- Stall: the evals ran twice. The first run used the container's default model, not the baseline's, because the runner passes no model unless told to. Its result (7 green, 1 flaky, 2 red) is not the recorded one. The rerun passed `--model` with the coordinator row's value.
+- Stall: Claude Code doesn't load a `CLAUDE.md` kept in a session scratchpad, so the eval config folder had to live outside it.
+- The session's harness names a session branch and asks for a pull request. This repo's `CLAUDE.md` says push to `main` with no pull request, and that was followed.
+
+**Pending: yours.**
+1. Re-sync the two account skills: upload `cloud/dev-workflow` and `skills/changeable-software` to your account's skills again (or run your sync job). A session can't do it. Until then cloud sessions report the cloud skill as behind `template.sha`.
+2. #34, `/doctor prompt-audit`, in a fresh local session.
+3. Two follow-ups from #32 that this batch recorded but did not make: allow `github.com` in the user template's sandbox network settings, and say in README "Guardrails" that the sandbox block does nothing in a cloud session. Neither has a ticket yet.

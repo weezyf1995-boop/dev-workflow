@@ -33,7 +33,7 @@ Nothing is open. The cloud-hooks probe was answered on 2026-11-24: yes (gap 2).
 | Cloud network allowlist, secrets, setup script | Levels are None / Limited / Full. Environment variables are readable inside the VM. Network secrets are added by a proxy after the request leaves the VM, and cannot be used for Anthropic's own hosts. Setup script runs before Claude starts. Cloud sessions read only the repo's `.claude/settings.json`, not the Mac's `~/.claude`. |
 | CI auto-fix on pushes to `main` | **Not documented.** Auto-fix (`/autofix-pr`, the toggle, PR Steward) is pull-request only. The GitHub Action can run on any event with a `prompt`, so a custom `workflow_run` job on `main` is possible but unsupported. |
 
-Not found, so dropped: `claude auto-mode critique`, and a "Trusted" or "Custom" network level.
+Not found, so dropped: a "Trusted" or "Custom" network level. (`claude auto-mode critique` was dropped here too, but it exists: the run found it.)
 
 ## Hook audit (the handover's exit-1 question)
 
@@ -65,6 +65,19 @@ One fix: make the context guard's error path print a `systemMessage` the way the
 **Probe, answered 2026-11-24.** The ERP repo's remote on the Mac is HTTPS (`https://github.com/...`), so pushes don't read `~/.ssh` and the deny costs nothing there. No `excludedCommands` entry for git is planned. One thing the answer doesn't cover: an HTTPS push takes its token from the macOS keychain, and whether the keychain helper works inside the sandbox is checked by the first item of the test below. If it fails, `git push` and `git fetch` go into `sandbox.excludedCommands`.
 
 **Test.** In a fresh session with the template applied: `cat .env` is denied; a sandboxed `cat ~/.ssh/config` fails; `claude auto-mode config` prints the merged rules; a sandboxed `git fetch` and a normal push to `main` go through (the keychain check); in auto mode a `git push --force` is blocked; one light-path change lands end to end.
+
+**What the run showed (2026-11-24).**
+
+- Doc fact the builders corrected: the layers are checked in this order: deny rules, the auto mode classifier, the sandbox.
+- Doc fact: in user scope a bare `denyRead` path resolves under `~/.claude`, so the templates use `~/**/.env` (user) and `./**/.env` (project).
+- Doc fact: `claude auto-mode critique` exists. The "Not found, so dropped" line above was wrong.
+- #32 hand test: the keychain helper works in the sandbox, so nothing goes into `excludedCommands`.
+- #32 hand test: `github.com` is not on the sandbox network allowlist. `git fetch` and `git push` each failed once with a 403 from the sandbox proxy, then worked. Follow-up, not done in #33: the user template should allow `github.com` in the sandbox network settings.
+- #32 hand test: a cloud session started with the sandbox off although the project template turns it on. The template's sandbox block does nothing in the cloud. Follow-up, not done in #33: say so in README "Guardrails".
+- #32 hand test: in `acceptEdits` mode every git command a worktree builder ran needed approval. Not checked in auto mode.
+- Sami's user settings carry Alethia-specific `autoMode` entries (`environment` and two `soft_deny` rules) that apply in every repo. They belong in Alethia's project settings, which is his to move.
+- Call on Sami: the #32 hand tests couldn't be done as written. The wizard's "Expected / Result" wording read as "type the expected value", and the Mac's folders weren't reachable from a cloud session. The checks ran headless by a script, with Claude judging the output.
+- Call on Sami: deleting a remote branch was refused twice, by the cloud proxy during the run and by the auto mode classifier in the #32 session.
 
 ### 2. Hooks instead of instructions
 
@@ -105,11 +118,25 @@ What follows:
 - Workflow line 33 and README line 90 ("doesn't cover cloud sessions") change on the same condition, for the frozen tripwire.
 - A UserPromptSubmit hook also fires when a subagent hands back, with no person typing. The context guard's prompt refusal past 400k has to let that through, or a coordinator past 400k can't receive its own builders' reports. One case in `tests/test_context_guard.py`, in the ticket that wires the cloud hooks.
 - SubagentStop fired a second time, two seconds after Stop, though the session started one subagent. Something in the harness counts as a subagent. The suite tripwire's rule (run `touched` only when the checkout has changes against its base) already lets that pass, and its tests get a payload for it.
-- Not tested: whether exit 2 or `decision: "block"` blocks in the cloud the way the docs say. The probe hook only logged. The suite tripwire's hand test (below) runs once in a cloud session to cover it.
+- Not tested by the probe: whether exit 2 or `decision: "block"` blocks in the cloud. The #32 hand test covered it: a red `full` blocked Stop twice in a cloud session, then let it through, so exit-2 blocking works there.
 
 How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings.json` and `.claude/hooks/probe.sh`, which appended the event name to a log in `/tmp`. A second cloud session on that branch ran one shell command and one Explore subagent, then printed the log. The commit is reverted (`6ebf678`), neither commit reached `main`, and the second session is archived.
 
 **Test.** `tests/test_suite_tripwire.py` drives the script with recorded payloads, the same way `tests/test_frozen_tripwire.py` does, and asserts stdout and exit code for: no config, green, red (exit 2), third block (exit 0 with message), unchanged tree (skipped). Then by hand in a scratch repo: break a test, watch a builder subagent get held at SubagentStop.
+
+**What the run showed (2026-11-24).**
+
+- Skipped check: #30's lint code was written before its tests. The builder then proved the tests by breaking the code.
+- Skipped check: the test payloads for #30 and #31 are synthesized from documented shapes, not captured.
+- Doc fact: the hooks docs show no payload field that marks a subagent's report.
+- #32: every check passed except one. A real subagent report reaches UserPromptSubmit as `<agent-message from="…">` opening with `[Subagent hand-back]`, not as a `<task-notification>` block. A `queued-remote-notifications` `<task-notification>` does fire the hook and passes the guard today. The subagent's own completion notice doesn't fire it. Ticketed as #36. Only the cloud shape was tested.
+- #32: a red `full` blocked Stop twice in a cloud session, then let it through. Exit-2 blocking works in the cloud.
+- #32: the suite tripwire's give-up `systemMessage` for a subagent is not in a headless `stream-json` transcript. The only record is the state file `~/.claude/state/suite-blocks-<hash>.json` with `"gave_up": true`, so a headless coordinator reads that file to count the failed build.
+- Call on the coordinator (#28): the suite tripwire acts only when the payload `cwd` is inside `$CLAUDE_PROJECT_DIR`, when that is set. The reviewers split on whether the trust risk needed it. It was cheap, so it went in.
+- Call on the coordinator (#30): only a linked worktree counts as a builder's checkout for SubagentStop. Open gap: a coordinator session that itself runs in a linked worktree brings the blocking case back for read-only agents.
+- Spec gap caught by review (#28): "two blocks per session" didn't say what a session is across turns. The give-up was per turn until the fix round.
+- Spec gap caught by review (#30): the ticket assumed read-only agents leave no changes, but they run in the coordinator's checkout.
+- Small fix round (#31) changed one line of logic, a rule in the context guard's pass-through.
 
 ### 3. An independent check after landing
 
@@ -125,6 +152,11 @@ How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings
 
 **Test.** Push a deliberately failing check to a scratch branch with the job's branch filter pointed at it; confirm the issue opens once and a second failure doesn't open another. Remove the branch.
 
+**What the run showed (2026-11-24).**
+
+- Step the workflow had no step for: hand tests that push a scratch branch and open real issues (#29). Deleting the branch afterwards needs rights the cloud proxy doesn't give, so `scratch/red-main-test` was left for Sami. It is gone from the remote now (see #32).
+- The CI runs for #25 to #30 were green. The run report doesn't record #31's result; read on 2026-11-24 during #33, it was green too (run 65). The coordinator read them by hand, since the workflow doesn't yet ask for it.
+
 ### 4. Human review by risk
 
 **Now.** Line 107 says nothing in the loop waits on the user. Line 108 parks tickets that need a ruling. There is no review tier.
@@ -132,6 +164,10 @@ How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings
 **Change** (ruling 3). Workflow lines 108-112: a ticket built by the high-risk builder that touches a frozen core, money, auth or the shape of stored data lands as normal, and the final report lists it under "Read before deploying" with its commit. Deployment sits in `autoMode.hard_deny` (gap 1), so the read happens before anything irreversible. No parking, no new stop.
 
 **Test.** A routing eval case is not needed; the rule only changes the report. Check the next /implement run's final report by reading it.
+
+**What the run showed (2026-11-24).**
+
+- The run report already carried a "Read before deploying" table (five security controls, with commits), written by the coordinator without a workflow rule. No ticket touched money, stored data or a frozen core.
 
 ### 5. CLAUDE.md audit
 
@@ -145,6 +181,10 @@ How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings
 
 **Test.** `checks/23-frozen-core-list.sh` still passes. The routing evals (below).
 
+**What the run showed (2026-11-24).**
+
+- Nothing from the run belongs here. #34 (`/doctor prompt-audit`) is still Sami's.
+
 ### 6. Cloud environment settings
 
 **Now.** This repo's cloud environment ("dev-workflow") had unrestricted network access when the plan was written. It has no setup script, and one network secret, for `api.github.com`. README line 67 mentions only the stop hook.
@@ -157,6 +197,11 @@ How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings
 
 **Test.** In a new session on the environment: `./check.sh` passes, a push works, and a request to an unlisted host is refused by the proxy.
 
+**What the run showed (2026-11-24).**
+
+- The cloud proxy refused a remote branch delete with a 403 (see gap 3). That is the environment's rule working, not a host to add.
+- A cloud session started with the sandbox off (see gap 1), so Limited network is the cloud's only network control for now.
+
 ### 7. "Where I needed you"
 
 **Now.** Line 108 says the final report opens with pending rulings. Line 112 sets the ticket report. Line 147 names the context report as the upkeep measure.
@@ -164,6 +209,15 @@ How it ran: one commit on the session branch (`76a70a6`) added `.claude/settings
 **Change.** Line 108: the final report ends with "Where I needed you": every ruling asked for, every permission prompt or denial, every hook block that a person had to clear, and every stall, one line each. Line 147: read that section alongside the context report and hand off one item.
 
 **Test.** Read the next run's report.
+
+**What the run showed (2026-11-24).**
+
+- Stall: /to-spec waited on Sami to confirm the four test seams. The skill requires it.
+- Stall: /to-tickets waited on Sami to approve the breakdown. The skill requires it.
+- Stall: #29's scratch branch couldn't be deleted (proxy 403).
+- Skipped check: the spec check before `/to-tickets` never ran.
+- No permission prompts, denials or hook blocks came up during the /implement run. The prompts and refusals in #32's hand tests are listed under gap 1.
+- The run's report had a "Where I needed you" section as this plan asked, before the rule was written.
 
 ## What forces a regenerated cloud skill and the evals
 
@@ -188,7 +242,7 @@ Scope is this repo only (ruling 1). Each step is its own commit on `main`, with 
 6. One batch of prose: workflow lines 33, 37, 74, 76, 97, 101-102, 108-112, 142, 147, 123 and 169 (the probe said yes); the changeable-software amendment; CONTEXT.md term. Then build the cloud skill, run the evals, re-sync both account skills (gaps 1, 2, 3, 4, 5, 7).
 7. You run `/doctor prompt-audit` in a fresh session (gap 5).
 
-Both probes are answered. Nothing waits on a probe or a decision.
+Status 2026-11-24: steps 1 to 5 landed as #25 to #31 (run report: `guardrails-run-report.md`). #32, the hand tests, is closed. Step 6 is #33, this batch. Step 7 is #34. Both probes are answered. Nothing waits on a probe or a decision.
 
 ## Execution: through dev-workflow itself
 
@@ -206,6 +260,14 @@ The build runs through `workflow/dev-workflow.md` end to end, with no shortcuts 
 | Upkeep | Cloud skill rebuilt and the routing evals run once, after the prose batch. Settings merged by you between sessions, never mid-session. |
 
 The run's final report carries the first "Where I needed you" section (gap 7), before the rule is written into the workflow. It also lists every point where a builder skipped a check the suite tripwire would have caught, and anything the workflow had no step for. Those go back into this plan before the prose batch is written, so the workflow edit reflects what the run showed.
+
+## Findings with no home in this batch
+
+The Waves section is out of scope for #33, so these are recorded here only.
+
+- Landing by cherry-pick from a worktree branch, amending the message to name the reviewers, happened in the run. The workflow says "rebase onto main, merge".
+- Area rule: four builders edited different README sections at once, at Sami's request, and every landing applied cleanly. Separate sections of one file could count as separate areas in step 2 of the wave plan.
+- The "no new logic, the coordinator re-reads the diff" rule in the ticket loop was stretched to cover #31's one-line rule change.
 
 ## Out of scope
 

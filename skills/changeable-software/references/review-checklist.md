@@ -45,7 +45,7 @@ Scale to the change. The **Always** block is short enough that there is no excus
 
 - Has this problem occurred before? If so, was the generator addressed or only the event?
 - Was any "we'll clean this up later" left in? Do it now, or write down the concrete trigger for doing it.
-- Is everything this change classified — new vocabulary, frozen cores, disposable marks, named debt — recorded in the project's `CLAUDE.md` design section, and marked in the code where the skill says to mark it?
+- Is everything this change classified recorded where it lives? New vocabulary and named debt go in the project's `CLAUDE.md` design section, with each frozen core's mechanism and sealed measures; frozen cores and disposable code are marked in the code. *(Amendment, owner's authority, 2026-11-24.)*
 
 ### Proxies
 

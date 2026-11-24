@@ -76,7 +76,7 @@ On the full path, read `references/testing-standard.md` and write down which tes
 
 ## Where the answers live
 
-Nothing carries between sessions unless it is in the repo. Anything the five steps decide that the next session must honour goes in a `## Design` section of the project's `CLAUDE.md` (create it if absent): the vocabulary from step 2, frozen cores and what enforces each (a purity test, a separate process, a fingerprinted config — a frozen core with no mechanism is a declaration, not a core), sealed measures and where their amendment register lives, disposable areas, and named debt with its reason. That section is agent instructions, and Law 6 puts vocabulary there for a reason.
+Nothing carries between sessions unless it is in the repo. Anything the five steps decide that the next session must honour goes in a `## Design` section of the project's `CLAUDE.md` (create it if absent): the vocabulary from step 2, frozen cores and what enforces each (a purity test, a separate process, a fingerprinted config — a frozen core with no mechanism is a declaration, not a core), sealed measures and where their amendment register lives, and named debt with its reason. Which files are frozen or disposable is read from the code markers below, not listed in the section. *(Amendment, owner's authority, 2026-11-24.)* That section is agent instructions, and Law 6 puts vocabulary there for a reason.
 
 Mark the code too, so review mode can see it without the file:
 
