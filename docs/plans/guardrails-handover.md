@@ -15,10 +15,25 @@
 - Skipped: the spec check before `/to-tickets` never ran. It goes into the final report.
 - The wave plan is `docs/plans/guardrails-waves.md`.
 - `/implement` ran on 2026-11-24. #25 to #31 are landed and closed; the run report is `docs/plans/guardrails-run-report.md`. Nothing in `workflow/`, `skills/`, `CONTEXT.md` or `cloud/` has changed yet.
+- #32 (hand tests) is closed. Its three comments hold every result: the cloud checks, the local checks, and the two follow-ups. All pass except one: a real subagent report does not reach the context guard as a `<task-notification>` block. That fix is #36 (`ready-for-agent`, sub-issue of #24, not blocking #33).
+- Both scratch branches are deleted and the hand-test scripts are removed from the repo.
+- The light-path hand test landed `0109dd0` (README: why a Claude API key can't be a network secret), which clears that debt line from the run report.
+
+## Findings from #32 for #33 to fold into the plan
+
+The detail is on #32. In short:
+
+- **Gap 2, context guard:** the report arrives as `<agent-message from="…">` opening with `[Subagent hand-back]`. A `queued-remote-notifications` `<task-notification>` does fire UserPromptSubmit and passes the guard today. The subagent's own completion notice doesn't fire the hook. Only the cloud shape was tested. Ticketed as #36.
+- **Gap 2, pass-through:** the suite tripwire's give-up `systemMessage` for a subagent isn't in a headless `stream-json` transcript. The state file in `~/.claude/state` is the only record, so a headless coordinator can't count it as a failed build.
+- **Gap 2, builders:** in `acceptEdits` mode every git command a worktree builder ran needed approval. Not checked in auto mode.
+- **Gap 1, sandbox network:** `github.com` isn't on the sandbox allowlist. `git fetch` and `git push` each failed once with a 403 and worked when Claude allowed the host for that command. No keychain problem, so nothing goes into `excludedCommands`. The user template should allow `github.com`.
+- **Gap 1, cloud:** a cloud session started with the sandbox off although the project template turns it on. The template's sandbox block does nothing there.
+- **Gap 1, user settings:** Sami's user settings carry Alethia-specific `autoMode` entries (`environment` and two `soft_deny` rules) that apply in every repo. They belong in Alethia's project settings.
+- **Where I needed you:** the hand tests could not be done as written. The wizard's "Expected / Result" wording read as "type the expected value", the Mac's folders weren't reachable from a cloud session, and the checks ended up run headless by a script with Claude judging the output. Deleting a remote branch was refused twice: by the cloud proxy during the run, and by the auto mode classifier in the session that did #32.
 
 ## Next step
 
-Sami does #32 (hand tests, including one real subagent-report payload in a cloud session) and deletes the remote branch `scratch/red-main-test`. Both are in the wizard `docs/plans/guardrails-hand-tests.sh`: run it on the Mac from the dev-workflow clone, with every Claude session closed. It posts the results to #32. Delete the wizard once #32 is closed. Then #33, the prose batch, which folds the run report's findings into the plan first. Then Sami's #34.
+Sami types `/implement` for #33, the prose batch. It folds the run report's findings and the list above into the plan first, then makes the workflow, skill and glossary edits, rebuilds the cloud skill and runs the routing evals once. Then Sami's #34. #36 can run any time.
 
 ## Rules that hold
 
