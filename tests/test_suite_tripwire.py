@@ -712,5 +712,65 @@ class LintTest(SuiteTripwireTest):
         self.assertEqual(self.files(), [])
 
 
+class DefaultBranchTest(SuiteTripwireTest):
+    """Main is the default branch: the local branch origin/HEAD names, else main, else master."""
+
+    def origin_head(self, name):
+        """Point refs/remotes/origin/HEAD at origin/<name>, as a clone does."""
+        git(self.repo, "update-ref", f"refs/remotes/origin/{name}", "HEAD")
+        git(self.repo, "symbolic-ref", "refs/remotes/origin/HEAD", f"refs/remotes/origin/{name}")
+
+    def test_master_without_main_runs_full(self):
+        git(self.repo, "branch", "-m", "main", "master")
+        self.checks(full=self.full("exit 1"))
+        self.assert_blocked(self.stop(), "master holds commits")
+        self.assertEqual(self.runs(), 1)
+
+    def test_master_without_main_runs_touched(self):
+        git(self.repo, "branch", "-m", "main", "master")
+        self.checks(touched=self.full("exit 1"))
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "checks")
+        wt = os.path.join(self.tmp, "wt")
+        git(self.repo, "worktree", "add", "-q", wt, "-b", "builder")
+        write(os.path.join(wt, "app.py"), "x = 7\n")
+        d = load(BUILDER_PAYLOAD)
+        d.update(session_id="s1", stop_hook_active=False, cwd=wt)
+        self.assert_blocked(self.run_hook(d))
+        self.assertEqual(self.runs(), 1)
+
+    def test_origin_head_names_the_branch_over_main(self):
+        self.checks(full=self.full("true"))
+        git(self.repo, "checkout", "-q", "-b", "trunk")
+        self.land("x = 5\n")                     # trunk's tree now differs from main's
+        self.origin_head("trunk")
+        self.assert_silent(self.stop())
+        self.assertEqual(self.runs(), 1)
+        git(self.repo, "checkout", "-q", "main")
+        self.assert_silent(self.stop())         # main is not the default here, so no run
+        self.assertEqual(self.runs(), 1)
+
+    def test_origin_head_naming_master_beside_a_stale_main(self):
+        git(self.repo, "branch", "master")
+        git(self.repo, "checkout", "-q", "master")
+        self.land("x = 6\n")
+        self.origin_head("master")
+        self.checks(full=self.full("exit 1"))
+        self.assert_blocked(self.stop(), "master holds commits")
+
+    def test_origin_head_without_a_local_branch_falls_back_to_main(self):
+        self.origin_head("develop")
+        self.checks(full=self.full("exit 1"))
+        self.assert_blocked(self.stop(), "main holds commits")
+
+    def test_main_wins_over_master_without_origin_head(self):
+        git(self.repo, "branch", "master")
+        git(self.repo, "checkout", "-q", "master")
+        self.land("x = 8\n")
+        self.checks(full=self.full("true"))
+        self.assert_silent(self.stop())
+        self.assertEqual(self.runs(), 0)        # master's tree is not main's
+
+
 if __name__ == "__main__":
     unittest.main()

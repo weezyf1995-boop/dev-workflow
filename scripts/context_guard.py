@@ -13,7 +13,9 @@ Events:
   PostToolUse on Bash: nudge after oversized output.
   SessionStart on resume/fork: cold-cache warning.
 An internal error still exits 0, so a broken guard never blocks work, but it prints a one-line
-systemMessage saying the guard failed. Malformed stdin and unknown events stay silent."""
+systemMessage saying the guard failed. Malformed stdin and unknown events stay silent.
+Installed at user level and in the project: the user-level copy exits 0 silently when
+$CLAUDE_PROJECT_DIR/.claude/hooks/ holds a file of its name, so each hook acts once."""
 import json, os, re, sys
 
 WARN, HIGH = 200_000, 400_000   # tokens in context (1M window; baseline is 30-100k)
@@ -149,6 +151,23 @@ def prompt_submit(d, ctx):
     done(res)
 
 
+def defers_to_project_copy():
+    """True when this run is the user-level copy (~/.claude/scripts/) and the project carries its own
+    copy, $CLAUDE_PROJECT_DIR/.claude/hooks/<this file name>. Claude Code runs both entries, so the
+    user-level one stands aside and the project copy alone acts. A run through the project path
+    never stands aside, even when that path resolves into ~/.claude/scripts/."""
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    if not project:
+        return False
+    invoked = os.path.dirname(os.path.abspath(__file__))
+    hooks = os.path.abspath(os.path.join(project, ".claude", "hooks"))
+    if invoked == hooks:
+        return False                            # the project copy itself
+    if os.path.realpath(invoked) != os.path.realpath(os.path.expanduser("~/.claude/scripts")):
+        return False                            # not the user-level copy
+    return os.path.isfile(os.path.join(hooks, os.path.basename(__file__)))
+
+
 def main(d):
     ev = d.get("hook_event_name")
 
@@ -201,7 +220,13 @@ def main(d):
 
 if __name__ == "__main__":
     try:
-        payload = json.load(sys.stdin)
+        stdin = sys.stdin.read()
+    except ValueError:
+        sys.exit(0)  # undecodable stdin is not the guard's failure
+    if defers_to_project_copy():
+        sys.exit(0)
+    try:
+        payload = json.loads(stdin)
     except ValueError:
         sys.exit(0)  # malformed stdin is not the guard's failure
     if not isinstance(payload, dict):

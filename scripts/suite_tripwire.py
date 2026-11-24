@@ -4,6 +4,8 @@ A repository opts in with .claude/checks.json at its top level: a JSON object wi
 strings `lint`, `touched` and `full`, each run by the shell from the top level. With no file, or no
 key for the event, the hook does nothing, so it is safe at user level.
 This is a tripwire, not a mechanism: it runs locally and can be bypassed. The mechanism is CI on main.
+Main below is the default branch: the local branch refs/remotes/origin/HEAD names, else main, else
+master.
 Events:
   Stop: runs `full` when the tree of main's tip is not yet recorded green for this repository (the
     record is shared by every worktree). Green records the tree, so the same tree never runs twice.
@@ -28,9 +30,11 @@ Events:
 Trust: with CLAUDE_PROJECT_DIR set, it acts only when the payload's cwd (and for lint, the real path
 of the edited file) is inside that directory, so a session that has moved into another clone never
 runs that clone's commands.
-Outside a git repository, or with no main branch, it does nothing. A corrupt state file counts as
+Outside a git repository, or with no default branch, it does nothing. A corrupt state file counts as
 empty. On an internal error (a git call over its time budget included) it lets the stop through and
-prints a one-line warning naming the error type, so it never fails unseen."""
+prints a one-line warning naming the error type, so it never fails unseen.
+Installed at user level and in the project: the user-level copy exits 0 silently when
+$CLAUDE_PROJECT_DIR/.claude/hooks/ holds a file of its name, so each hook acts once."""
 import hashlib, json, os, signal, subprocess, sys, tempfile, time
 
 CHECKS_FILE = os.path.join(".claude", "checks.json")
@@ -220,23 +224,45 @@ def guarded(d, key, top, name, blocked, fix, gave_up):
     block(f"Suite tripwire: {blocked} {failure}\n{fix}")
 
 
+def default_branch(top):
+    """The repository's default branch, called main in this file: the local branch that
+    refs/remotes/origin/HEAD names, else `main`, else `master`; None when none exists. One git call."""
+    r = git(top, "for-each-ref", "--format=%(refname) %(symref)", "refs/remotes/origin/HEAD", "refs/heads/")
+    if r.returncode != 0:
+        return None
+    heads, origin = set(), None
+    for line in r.stdout.splitlines():
+        ref, _, target = line.partition(" ")
+        if ref == "refs/remotes/origin/HEAD" and target.startswith("refs/remotes/origin/"):
+            origin = target[len("refs/remotes/origin/"):]
+        elif ref.startswith("refs/heads/"):
+            heads.add(ref[len("refs/heads/"):])
+    for name in (origin, "main", "master"):
+        if name and name in heads:
+            return name
+    return None
+
+
 def stop(d):
     top = checkout(d.get("cwd"))
     if not top or not check_command(top, "full"):
         done()
-    r = git(top, "rev-parse", "--verify", "-q", "refs/heads/main^{tree}")
+    branch = default_branch(top)
+    if not branch:
+        done()                                  # no default branch: nothing has landed
+    r = git(top, "rev-parse", "--verify", "-q", f"refs/heads/{branch}^{{tree}}")
     tree = r.stdout.strip()
     if r.returncode != 0 or not tree:
-        done()                                  # no main branch: nothing has landed
+        done()
     if git(top, "rev-parse", "-q", "HEAD^{tree}").stdout.strip() != tree:
         done()                                  # a run here would not prove main's tree
     greens = Greens(top)
     if tree in greens:
         done()
     guarded(d, tree, top, "full",
-            blocked="main holds commits not yet proven green.",
-            fix="Fix main and get `full` green before stopping.",
-            gave_up="main is still not proven green.")
+            blocked=f"{branch} holds commits not yet proven green.",
+            fix=f"Fix {branch} and get `full` green before stopping.",
+            gave_up=f"{branch} is still not proven green.")
     greens.add(tree)
     done()
 
@@ -266,10 +292,13 @@ def subagent_stop(d):
         done()
     if not linked_worktree(top):
         done()                                  # reviewers, Explore agents, the post-Stop event
-    r = git(top, "merge-base", "HEAD", "refs/heads/main")
+    branch = default_branch(top)
+    if not branch:
+        done()                                  # no default branch
+    r = git(top, "merge-base", "HEAD", f"refs/heads/{branch}")
     base = r.stdout.strip()
     if r.returncode != 0 or not base:
-        done()                                  # no main branch, or no history shared with it
+        done()                                  # no history shared with main
     if not has_changes(top, base):
         done()                                  # a worktree with nothing done in it yet
     guarded(d, f"touched@{base}", top, "touched",
@@ -307,8 +336,28 @@ def post_tool_use(d):
 EVENTS = {"Stop": stop, "SubagentStop": subagent_stop, "PostToolUse": post_tool_use}
 
 
+def defers_to_project_copy():
+    """True when this run is the user-level copy (~/.claude/scripts/) and the project carries its own
+    copy, $CLAUDE_PROJECT_DIR/.claude/hooks/<this file name>. Claude Code runs both entries, so the
+    user-level one stands aside and the project copy alone acts. A run through the project path
+    never stands aside, even when that path resolves into ~/.claude/scripts/."""
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    if not project:
+        return False
+    invoked = os.path.dirname(os.path.abspath(__file__))
+    hooks = os.path.abspath(os.path.join(project, ".claude", "hooks"))
+    if invoked == hooks:
+        return False                            # the project copy itself
+    if os.path.realpath(invoked) != os.path.realpath(os.path.expanduser("~/.claude/scripts")):
+        return False                            # not the user-level copy
+    return os.path.isfile(os.path.join(hooks, os.path.basename(__file__)))
+
+
 def main():
-    d = json.load(sys.stdin)
+    stdin = sys.stdin.read()
+    if defers_to_project_copy():
+        done()
+    d = json.loads(stdin)
     handler = EVENTS.get(d.get("hook_event_name"))
     if handler:
         handler(d)

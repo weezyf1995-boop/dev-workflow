@@ -12,7 +12,9 @@ Events:
     to the top level, for OVERRIDE_HOURS across every worktree of the repository; `frozen override
     clear` ends it. The prompt is blocked from the model and the confirmation or usage is the reason.
 Outside a git repository it does nothing. On an internal error it allows the action and prints a
-one-line warning naming the error type, so a broken tripwire never blocks work and never fails unseen."""
+one-line warning naming the error type, so a broken tripwire never blocks work and never fails unseen.
+Installed at user level and in the project: the user-level copy exits 0 silently when
+$CLAUDE_PROJECT_DIR/.claude/hooks/ holds a file of its name, so each hook acts once."""
 import hashlib, json, os, subprocess, sys, tempfile, time
 
 EDIT_TOOLS = ("Edit", "Write", "MultiEdit", "NotebookEdit")
@@ -163,8 +165,28 @@ def prompt_submit(d):
         f"`frozen override clear` ends it.{note}")})
 
 
+def defers_to_project_copy():
+    """True when this run is the user-level copy (~/.claude/scripts/) and the project carries its own
+    copy, $CLAUDE_PROJECT_DIR/.claude/hooks/<this file name>. Claude Code runs both entries, so the
+    user-level one stands aside and the project copy alone acts. A run through the project path
+    never stands aside, even when that path resolves into ~/.claude/scripts/."""
+    project = os.environ.get("CLAUDE_PROJECT_DIR")
+    if not project:
+        return False
+    invoked = os.path.dirname(os.path.abspath(__file__))
+    hooks = os.path.abspath(os.path.join(project, ".claude", "hooks"))
+    if invoked == hooks:
+        return False                            # the project copy itself
+    if os.path.realpath(invoked) != os.path.realpath(os.path.expanduser("~/.claude/scripts")):
+        return False                            # not the user-level copy
+    return os.path.isfile(os.path.join(hooks, os.path.basename(__file__)))
+
+
 def main():
-    d = json.load(sys.stdin)
+    stdin = sys.stdin.read()
+    if defers_to_project_copy():
+        done()
+    d = json.loads(stdin)
     PAYLOAD.update(d)
     ev = d.get("hook_event_name")
     if ev == "PreToolUse":
