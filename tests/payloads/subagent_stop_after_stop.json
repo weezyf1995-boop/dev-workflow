@@ -1,0 +1,14 @@
+{
+  "session_id": "3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77.jsonl",
+  "cwd": "/Users/example/project",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_id": "c0ffee0123456789",
+  "agent_type": "",
+  "agent_transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77/subagents/agent-c0ffee0123456789.jsonl",
+  "last_assistant_message": "",
+  "background_tasks": [],
+  "session_crons": []
+}

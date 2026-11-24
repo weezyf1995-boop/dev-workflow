@@ -13,9 +13,21 @@ Events:
     given up on that tree: later stops pass at once. A new landing on main starts afresh.
     `full` runs in the checkout the session is in, from its top level, and only when that checkout's
     HEAD has main's tree, so a green run proves the tree it records (uncommitted changes aside).
-  Another event slots in as a handler in EVENTS, with its own check name and the same Blocks rule.
-Trust: with CLAUDE_PROJECT_DIR set, it acts only when the payload's cwd is inside that directory, so
-a session that has moved into another clone never runs that clone's commands.
+  SubagentStop: runs `touched` only when the payload's cwd is in a linked worktree (git-dir differs
+    from git-common-dir), since builders always run in one and the main checkout is never a
+    builder's; and only when that worktree has changes against its base: the merge-base of HEAD
+    with main, plus staged, unstaged and untracked (not ignored) files. Read-only subagents and the
+    extra SubagentStop the harness fires after Stop carry the main checkout's cwd, so they pass
+    without running anything, whatever work sits there. Red exits 2; the Blocks rule is Stop's, per
+    agent and base, so edits between blocks don't reset the count.
+  PostToolUse on Edit, Write or MultiEdit: runs `lint` in the checkout holding the edited file, with
+    the file's path relative to its top level, prefixed `./` so it can't read as an option, in
+    $TRIPWIRE_FILE. The edit has already happened, so
+    red only informs: exit 2 with the output on stderr, and nothing is counted.
+  Another event slots in as a handler in EVENTS; a stop-like one goes through guarded().
+Trust: with CLAUDE_PROJECT_DIR set, it acts only when the payload's cwd (and for lint, the real path
+of the edited file) is inside that directory, so a session that has moved into another clone never
+runs that clone's commands.
 Outside a git repository, or with no main branch, it does nothing. A corrupt state file counts as
 empty. On an internal error (a git call over its time budget included) it lets the stop through and
 prints a one-line warning naming the error type, so it never fails unseen."""
@@ -26,8 +38,9 @@ STATE = os.path.expanduser("~/.claude/state")
 KEEP_TREES = 50                 # green trees remembered per repository; older ones may run again
 MAX_BLOCKS = 2                  # blocks before giving up, so a suite that can't pass doesn't loop
 TAIL_LINES = 40                 # lines of a failure shown to Claude
-CHECK_TIMEOUT = 540             # seconds for the check command,
+CHECK_TIMEOUT = 540             # seconds for `full` or `touched`,
 GIT_BUDGET = 20                 # plus seconds for all git calls, under the 600s Stop hook timeout
+LINT_TIMEOUT = 90               # seconds for `lint`, plus GIT_BUDGET, under the 120s PostToolUse timeout
 DEADLINE = time.time() + GIT_BUDGET
 
 
@@ -112,15 +125,16 @@ class Greens:
 
 
 class Blocks:
-    """Blocks for one agent (a session, or a subagent within it) on one tree, kept in STATE, with the
-    last failure so giving up can name it without running the check again."""
+    """Blocks for one agent (a session, or a subagent within it) on one key, kept in STATE, with the
+    last failure so giving up can name it without running the check again. The key is what a
+    block is about: main's tree for Stop, `touched@<base>` for SubagentStop."""
 
-    def __init__(self, d, tree):
+    def __init__(self, d, key):
         who = f"{d.get('session_id') or ''}/{d.get('agent_id') or ''}"
         self.path = os.path.join(STATE, f"suite-blocks-{hashlib.sha256(who.encode()).hexdigest()[:16]}.json")
-        self.tree = tree
+        self.key = key
         s = read_state(self.path)
-        same = s.get("tree") == tree and isinstance(s.get("blocks"), int)
+        same = s.get("key") == key and isinstance(s.get("blocks"), int)
         self.count = s["blocks"] if same else 0
         self.failure = str(s.get("failure") or "") if same else ""
         self.gave_up = bool(s.get("gave_up")) if same else False
@@ -135,7 +149,7 @@ class Blocks:
         self._write(blocks=self.count, failure=self.failure, gave_up=True)
 
     def _write(self, **fields):
-        write_state(self.path, dict(tree=self.tree, **fields))
+        write_state(self.path, dict(key=self.key, **fields))
 
     def clear(self):
         try:
@@ -144,18 +158,19 @@ class Blocks:
             pass
 
 
-def run_check(top, command):
-    """(passed, output, how it ended) for one check command, run by the shell from the top level.
-    Running out of time counts as a failure, so a hung suite blocks rather than passing unseen."""
+def run_check(top, command, env=None, timeout=CHECK_TIMEOUT):
+    """(passed, output, how it ended) for one check command, run by the shell from the top level,
+    with env added to the environment. Running out of time counts as a failure, so a hung suite
+    blocks rather than passing unseen."""
     p = subprocess.Popen(command, shell=True, cwd=top, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                          stderr=subprocess.STDOUT, universal_newlines=True, errors="replace",
-                         start_new_session=True)
+                         start_new_session=True, env=dict(os.environ, **(env or {})))
     try:
-        out, _ = p.communicate(timeout=CHECK_TIMEOUT)
+        out, _ = p.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         os.killpg(p.pid, signal.SIGKILL)  # the whole group, so no grandchild holds the pipe open
         out, _ = p.communicate()
-        return False, out or "", f"timed out after {CHECK_TIMEOUT}s"
+        return False, out or "", f"timed out after {timeout}s"
     return p.returncode == 0, out, f"exit {p.returncode}"
 
 
@@ -177,13 +192,37 @@ def let_through(message):
     sys.exit(0)
 
 
-def stop(d):
-    cwd = d.get("cwd")
-    top = top_level(cwd)
-    if not top or not trusted(cwd):
+def checkout(path):
+    """The top level of the trusted checkout holding path, or None (the trust check comes first,
+    so no git call runs in an untrusted directory)."""
+    if not path or not os.path.isdir(path) or not trusted(path):
+        return None
+    return top_level(path)
+
+
+def guarded(d, key, top, name, blocked, fix, gave_up):
+    """Run check `name` for one agent under the Blocks rule, shared by every stop-like event: red
+    exits 2 naming the failure; after MAX_BLOCKS the stop passes with a systemMessage naming the
+    stored failure and no rerun, and the agent stays given up on key. Returns only when green."""
+    blocks = Blocks(d, key)
+    if blocks.gave_up:
         done()
-    command = check_command(top, "full")
-    if not command:
+    if blocks.spent():
+        blocks.give_up()
+        let_through(f"Suite tripwire gave up after {MAX_BLOCKS} blocks and let the stop through: "
+                    f"{gave_up} {blocks.failure}")
+    passed, output, ended = run_check(top, check_command(top, name))
+    if passed:
+        blocks.clear()
+        return
+    failure = f"`{name}` from {CHECKS_FILE} failed ({ended}).\n{tail(output)}"
+    blocks.add(failure)
+    block(f"Suite tripwire: {blocked} {failure}\n{fix}")
+
+
+def stop(d):
+    top = checkout(d.get("cwd"))
+    if not top or not check_command(top, "full"):
         done()
     r = git(top, "rev-parse", "--verify", "-q", "refs/heads/main^{tree}")
     tree = r.stdout.strip()
@@ -194,25 +233,78 @@ def stop(d):
     greens = Greens(top)
     if tree in greens:
         done()
-    blocks = Blocks(d, tree)
-    if blocks.gave_up:
-        done()
-    if blocks.spent():
-        blocks.give_up()
-        let_through(f"Suite tripwire gave up after {MAX_BLOCKS} blocks and let the stop through: "
-                    f"main is still not proven green. {blocks.failure}")
-    passed, output, ended = run_check(top, command)
-    if passed:
-        greens.add(tree)
-        blocks.clear()
-        done()
-    failure = f"`full` from {CHECKS_FILE} failed ({ended}).\n{tail(output)}"
-    blocks.add(failure)
-    block(f"Suite tripwire: main holds commits not yet proven green. {failure}\n"
-          "Fix main and get `full` green before stopping.")
+    guarded(d, tree, top, "full",
+            blocked="main holds commits not yet proven green.",
+            fix="Fix main and get `full` green before stopping.",
+            gave_up="main is still not proven green.")
+    greens.add(tree)
+    done()
 
 
-EVENTS = {"Stop": stop}
+def has_changes(top, base):
+    """True when the checkout differs from base: commits since it, staged, unstaged or untracked
+    (not ignored) files."""
+    if git(top, "diff", "--quiet", base, "--").returncode != 0:
+        return True
+    return bool(git(top, "ls-files", "--others", "--exclude-standard").stdout.strip())
+
+
+def linked_worktree(top):
+    """True when top is a linked worktree (git-dir differs from git-common-dir), not the main
+    checkout."""
+    r = git(top, "rev-parse", "--git-dir", "--git-common-dir")
+    dirs = r.stdout.split("\n")[:2]
+    if r.returncode != 0 or len(dirs) != 2:
+        return False
+    git_dir, common = (os.path.realpath(os.path.join(top, p)) for p in dirs)
+    return git_dir != common
+
+
+def subagent_stop(d):
+    top = checkout(d.get("cwd"))
+    if not top or not check_command(top, "touched"):
+        done()
+    if not linked_worktree(top):
+        done()                                  # reviewers, Explore agents, the post-Stop event
+    r = git(top, "merge-base", "HEAD", "refs/heads/main")
+    base = r.stdout.strip()
+    if r.returncode != 0 or not base:
+        done()                                  # no main branch, or no history shared with it
+    if not has_changes(top, base):
+        done()                                  # a worktree with nothing done in it yet
+    guarded(d, f"touched@{base}", top, "touched",
+            blocked="this checkout's changes are not green.",
+            fix="Get `touched` green before finishing.",
+            gave_up="the changes are still not green.")
+    done()
+
+
+LINT_FILE_VAR = "TRIPWIRE_FILE"
+
+
+def post_tool_use(d):
+    """`lint` on the file an edit tool just changed, passed as $TRIPWIRE_FILE relative to the top
+    level and prefixed `./`, so a file named `-x.py` can't reach a linter as an option. The edit
+    has happened, so red only informs: exit 2 with the output, and no counting."""
+    if d.get("tool_name") not in ("Edit", "Write", "MultiEdit"):
+        done()
+    path = (d.get("tool_input") or {}).get("file_path")
+    if not isinstance(path, str) or not os.path.isfile(path) or not checkout(d.get("cwd")):
+        done()
+    path = os.path.realpath(path)               # trust and the checkout follow the real file
+    top = checkout(os.path.dirname(path))
+    command = top and check_command(top, "lint")
+    if not command:
+        done()
+    rel = "./" + os.path.relpath(path, os.path.realpath(top))
+    passed, output, ended = run_check(top, command, {LINT_FILE_VAR: rel}, LINT_TIMEOUT)
+    if not passed:
+        block(f"Suite tripwire: `lint` from {CHECKS_FILE} failed on {rel} ({ended}). "
+              f"The edit stands; fix what lint reports.\n{tail(output)}")
+    done()
+
+
+EVENTS = {"Stop": stop, "SubagentStop": subagent_stop, "PostToolUse": post_tool_use}
 
 
 def main():

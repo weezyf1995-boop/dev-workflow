@@ -1,0 +1,14 @@
+{
+  "session_id": "3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77",
+  "transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77.jsonl",
+  "cwd": "/Users/example/project",
+  "permission_mode": "default",
+  "hook_event_name": "SubagentStop",
+  "stop_hook_active": false,
+  "agent_id": "b9c8d7e6f5a40312",
+  "agent_type": "Explore",
+  "agent_transcript_path": "/Users/example/.claude/projects/-Users-example-project/3f1c2a9e-5b7d-4e21-9a0c-6d8e2f4b1a77/subagents/agent-b9c8d7e6f5a40312.jsonl",
+  "last_assistant_message": "Found the handler in scripts/suite_tripwire.py.",
+  "background_tasks": [],
+  "session_crons": []
+}

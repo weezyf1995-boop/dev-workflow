@@ -1,8 +1,8 @@
 """Tests for scripts/suite_tripwire.py, driven through its process boundary.
 
 Each test builds a real temporary git repository with a `main` branch, writes
-its own `.claude/checks.json` there, feeds the recorded Stop payload
-(tests/payloads/stop.json) to the tripwire over stdin with HOME pointed at a
+its own `.claude/checks.json` there, feeds a recorded payload (Stop,
+SubagentStop or PostToolUse, under tests/payloads/) to the tripwire over stdin with HOME pointed at a
 fresh temp directory, and checks stdout, stderr and the exit code. The
 tripwire's functions are never imported, and no test reads this repository's
 own `.claude/checks.json`.
@@ -18,7 +18,17 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(HERE)
 TRIPWIRE = os.path.join(REPO, "scripts", "suite_tripwire.py")
-STOP_PAYLOAD = os.path.join(HERE, "payloads", "stop.json")
+PAYLOADS = os.path.join(HERE, "payloads")
+STOP_PAYLOAD = os.path.join(PAYLOADS, "stop.json")
+BUILDER_PAYLOAD = os.path.join(PAYLOADS, "subagent_stop_builder.json")
+READONLY_PAYLOAD = os.path.join(PAYLOADS, "subagent_stop_readonly.json")
+AFTER_STOP_PAYLOAD = os.path.join(PAYLOADS, "subagent_stop_after_stop.json")
+EDIT_PAYLOAD = os.path.join(PAYLOADS, "post_tool_use_edit.json")
+
+
+def load(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 GIT = ["git", "-c", "user.name=Test", "-c", "user.email=test@example.com",
        "-c", "commit.gpgsign=false", "-c", "init.defaultBranch=main"]
@@ -371,6 +381,335 @@ class ProvenTreeTest(SuiteTripwireTest):
         self.checks(full=self.full("true"))
         self.assert_silent(self.stop())
         self.assertEqual(self.runs(), 0)
+
+
+class SubagentTest(SuiteTripwireTest):
+    """SubagentStop runs `touched` when the subagent's cwd is a linked worktree with changes against
+    its base: the merge-base of its HEAD with main, plus uncommitted and untracked files."""
+
+    def setUp(self):
+        super().setUp()
+        self.wt = os.path.join(self.tmp, "wt")
+
+    def committed_checks(self, **commands):
+        """Write .claude/checks.json and commit it on main, so it is no change in any checkout."""
+        self.checks(**commands)
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "checks")
+
+    def builder(self, commit=True):
+        """A builder's worktree off main, with one change, committed by default."""
+        git(self.repo, "worktree", "add", "-q", self.wt, "-b", "builder")
+        write(os.path.join(self.wt, "app.py"), "x = 7\n")
+        if commit:
+            git(self.wt, "commit", "-q", "-am", "builder work")
+        return self.wt
+
+    def subagent_stop(self, payload=BUILDER_PAYLOAD, cwd=None, active=False, project_dir=None, **extra):
+        d = load(payload)
+        d.update(session_id="s1", stop_hook_active=active, cwd=cwd or self.wt, **extra)
+        return self.run_hook(d, project_dir)
+
+    def assert_let_through(self, result, *needles):
+        code, out, err = result
+        self.assertEqual(code, 0, err)
+        self.assertEqual(err, "")
+        msg = json.loads(out)["systemMessage"]
+        self.assertIn("Suite tripwire", msg)
+        for n in needles:
+            self.assertIn(n, msg)
+        return msg
+
+
+class TouchedTest(SubagentTest):
+    def test_green_touched_passes(self):
+        self.committed_checks(touched=self.full("echo fine"))
+        self.builder()
+        self.assert_silent(self.subagent_stop())
+        self.assertEqual(self.runs(), 1)
+
+    def test_touched_runs_from_the_top_level_of_the_subagents_checkout(self):
+        self.committed_checks(touched=self.full("test -f app.py && git rev-parse --abbrev-ref HEAD | grep -qx builder"))
+        sub = os.path.join(self.builder(), "pkg")
+        os.mkdir(sub)
+        self.assert_silent(self.subagent_stop(cwd=sub))
+        self.assertEqual(self.runs(), 1)
+
+    def test_red_touched_blocks_with_the_failure_on_stderr(self):
+        self.committed_checks(touched=self.full("echo 'FAIL: test_builder' >&2; exit 1"))
+        self.builder()
+        err = self.assert_blocked(self.subagent_stop(), "FAIL: test_builder", "exit 1", "`touched`")
+        self.assertIn(".claude/checks.json", err)
+
+    def test_uncommitted_changes_count(self):
+        self.committed_checks(touched=self.full("exit 1"))
+        self.builder(commit=False)
+        self.assert_blocked(self.subagent_stop())
+
+    def test_untracked_files_count(self):
+        self.committed_checks(touched=self.full("exit 1"))
+        git(self.repo, "worktree", "add", "-q", self.wt, "-b", "builder")
+        write(os.path.join(self.wt, "new_module.py"), "y = 1\n")
+        self.assert_blocked(self.subagent_stop())
+
+    def test_a_branch_behind_main_with_no_work_of_its_own_passes(self):
+        self.committed_checks(touched=self.full("exit 1"))
+        git(self.repo, "worktree", "add", "-q", self.wt, "-b", "builder")
+        self.land()                              # main moves on; the builder changed nothing
+        self.assert_silent(self.subagent_stop())
+        self.assertEqual(self.runs(), 0)
+
+
+class NoChangesTest(SubagentTest):
+    """A subagent whose checkout has no changes against its base passes without running `touched`."""
+
+    def setUp(self):
+        super().setUp()
+        self.committed_checks(touched=self.full("exit 1"))
+
+    def test_a_read_only_subagent_in_a_clean_worktree_passes(self):
+        git(self.repo, "worktree", "add", "-q", self.wt, "-b", "reviewer")
+        self.assert_silent(self.subagent_stop(READONLY_PAYLOAD))
+        self.assertEqual(self.runs(), 0)
+
+    def test_a_read_only_subagent_in_mains_checkout_passes(self):
+        self.assert_silent(self.subagent_stop(READONLY_PAYLOAD, cwd=self.repo))
+        self.assertEqual(self.runs(), 0)
+
+    def test_the_extra_subagent_stop_after_stop_passes(self):
+        self.land()                              # a landing on main is not a change against its base
+        self.assert_silent(self.subagent_stop(AFTER_STOP_PAYLOAD, cwd=self.repo))
+        self.assertEqual(self.runs(), 0)
+
+    def test_ignored_files_do_not_count(self):
+        write(os.path.join(self.repo, ".gitignore"), "build/\n")
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "ignore")
+        git(self.repo, "worktree", "add", "-q", self.wt, "-b", "builder")
+        write(os.path.join(self.wt, "build", "out.o"), "bin\n")
+        self.assert_silent(self.subagent_stop())
+        self.assertEqual(self.runs(), 0)
+
+    def test_no_main_branch_is_silent(self):
+        git(self.repo, "worktree", "add", "-q", self.wt, "-b", "builder")
+        write(os.path.join(self.wt, "app.py"), "x = 9\n")
+        git(self.repo, "branch", "-m", "main", "trunk")
+        self.assert_silent(self.subagent_stop())
+        self.assertEqual(self.runs(), 0)
+
+
+class MainCheckoutTest(SubagentTest):
+    """Read-only subagents and the post-Stop SubagentStop carry the coordinator's cwd, the main
+    checkout. Builders always run in linked worktrees, so the main checkout never runs `touched`,
+    whatever the coordinator's own work there."""
+
+    def setUp(self):
+        super().setUp()
+        self.committed_checks(touched=self.full("exit 1"))
+
+    def test_uncommitted_edits_in_the_main_checkout_pass(self):
+        write(os.path.join(self.repo, "app.py"), "x = 9\n")
+        write(os.path.join(self.repo, "notes.txt"), "draft\n")
+        for payload in (READONLY_PAYLOAD, AFTER_STOP_PAYLOAD, BUILDER_PAYLOAD):
+            with self.subTest(payload=os.path.basename(payload)):
+                self.assert_silent(self.subagent_stop(payload, cwd=self.repo))
+        self.assertEqual(self.runs(), 0)
+
+    def test_a_session_branch_with_commits_in_the_main_checkout_passes(self):
+        git(self.repo, "checkout", "-q", "-b", "claude/session")
+        self.land("x = 3\n")
+        for payload in (READONLY_PAYLOAD, AFTER_STOP_PAYLOAD):
+            with self.subTest(payload=os.path.basename(payload)):
+                self.assert_silent(self.subagent_stop(payload, cwd=self.repo))
+        self.assertEqual(self.runs(), 0)
+
+    def test_a_linked_worktree_with_changes_still_blocks(self):
+        write(os.path.join(self.repo, "app.py"), "x = 9\n")   # the coordinator's work, unrelated
+        self.builder()
+        self.assert_blocked(self.subagent_stop())
+
+
+class TouchedGiveUpTest(SubagentTest):
+    """Two blocks per agent, then the stop is let through with a message naming the stored failure."""
+
+    def setUp(self):
+        super().setUp()
+        self.committed_checks(touched=self.full("echo 'FAIL: test_builder'; exit 1"))
+        self.builder()
+
+    def give_up(self, **who):
+        self.assert_blocked(self.subagent_stop(active=False, **who))
+        self.assert_blocked(self.subagent_stop(active=True, **who))
+        return self.assert_let_through(self.subagent_stop(active=True, **who), "FAIL: test_builder")
+
+    def test_third_block_passes_with_a_system_message_without_running_touched_again(self):
+        msg = self.give_up()
+        self.assertIn("2 blocks", msg)
+        self.assertEqual(self.runs(), 2)
+
+    def test_after_giving_up_the_agents_later_stops_pass(self):
+        self.give_up()
+        self.assert_silent(self.subagent_stop())
+        self.assertEqual(self.runs(), 2)
+
+    def test_edits_between_blocks_do_not_reset_the_count(self):
+        self.assert_blocked(self.subagent_stop())
+        write(os.path.join(self.wt, "app.py"), "x = 8\n")
+        self.assert_blocked(self.subagent_stop(active=True))
+        self.assert_let_through(self.subagent_stop(active=True))
+
+    def test_blocks_are_counted_per_agent(self):
+        self.give_up(agent_id="agent-1")
+        self.assert_blocked(self.subagent_stop(agent_id="agent-2"))
+
+    def test_a_green_run_clears_the_count(self):
+        self.assert_blocked(self.subagent_stop())
+        write(os.path.join(self.wt, ".claude", "checks.json"), json.dumps({"touched": self.full("true")}))
+        self.assert_silent(self.subagent_stop(active=True))
+        write(os.path.join(self.wt, ".claude", "checks.json"), json.dumps({"touched": self.full("exit 1")}))
+        self.assert_blocked(self.subagent_stop())
+        self.assert_blocked(self.subagent_stop(active=True))   # two fresh blocks after the green run
+
+    def test_the_subagent_count_is_separate_from_the_sessions_stop(self):
+        self.committed_checks(touched=self.full("exit 1"), full=self.full("exit 1"))
+        self.give_up()
+        self.assert_blocked(self.stop())
+
+
+class TouchedQuietTest(SubagentTest):
+    def test_no_touched_key_is_silent(self):
+        self.committed_checks(full=self.full("exit 1"), lint=self.full("exit 1"))
+        self.builder()
+        self.assert_silent(self.subagent_stop())
+        self.assertEqual(self.runs(), 0)
+        self.assertEqual(self.state_files(), [])
+
+    def test_no_checks_file_is_silent(self):
+        self.builder()
+        self.assert_silent(self.subagent_stop())
+
+    def test_cwd_outside_the_project_dir_does_nothing(self):
+        self.committed_checks(touched=self.full("exit 1"))
+        self.builder()
+        elsewhere = os.path.join(self.tmp, "project")
+        os.mkdir(elsewhere)
+        self.assert_silent(self.subagent_stop(project_dir=elsewhere))
+        self.assertEqual(self.runs(), 0)
+        self.assertEqual(self.state_files(), [])
+
+    def test_a_worktree_under_the_project_dir_acts(self):
+        self.committed_checks(touched=self.full("exit 1"))
+        self.wt = os.path.join(self.repo, ".claude", "worktrees", "agent-1")
+        self.builder()
+        self.assert_blocked(self.subagent_stop(project_dir=self.repo))
+
+
+class LintTest(SuiteTripwireTest):
+    """PostToolUse on an edit tool runs `lint` with the edited file in $TRIPWIRE_FILE, relative to
+    the top level. Red exits 2 with the output on stderr; there is no block counting."""
+
+    def edit(self, path=None, cwd=None, tool="Edit", project_dir=None):
+        d = load(EDIT_PAYLOAD)
+        path = path or os.path.join(self.repo, "app.py")
+        d.update(cwd=cwd or self.repo, tool_name=tool)
+        d["tool_input"]["file_path"] = path
+        d["tool_response"]["filePath"] = path
+        return self.run_hook(d, project_dir)
+
+    def files(self):
+        try:
+            with open(self.ran) as f:
+                return f.read().split()
+        except FileNotFoundError:
+            return []
+
+    def lint(self, script="true"):
+        """A `lint` command that logs the file it was given, then runs the given shell script."""
+        return f"echo \"$TRIPWIRE_FILE\" >> '{self.ran}'; {script}"
+
+    def test_green_lint_passes_with_the_file_relative_to_the_top_level(self):
+        os.mkdir(os.path.join(self.repo, "pkg"))
+        write(os.path.join(self.repo, "pkg", "mod.py"), "y = 1\n")
+        self.checks(lint=self.lint("test -f \"$TRIPWIRE_FILE\""))
+        self.assert_silent(self.edit(os.path.join(self.repo, "pkg", "mod.py"), cwd=os.path.join(self.repo, "pkg")))
+        self.assertEqual(self.files(), ["./pkg/mod.py"])
+
+    def test_a_file_named_like_an_option_reaches_lint_as_a_path(self):
+        write(os.path.join(self.repo, "-x.py"), "y = 1\n")
+        self.checks(lint=self.lint("case \"$TRIPWIRE_FILE\" in -*) exit 1;; esac; test -f \"$TRIPWIRE_FILE\""))
+        self.assert_silent(self.edit(os.path.join(self.repo, "-x.py")))
+        self.assertEqual(self.files(), ["./-x.py"])
+
+    def test_red_lint_exits_2_with_the_output_on_stderr(self):
+        self.checks(lint=self.lint("echo \"E501 line too long in $TRIPWIRE_FILE\"; exit 1"))
+        err = self.assert_blocked(self.edit(), "E501 line too long in ./app.py", "`lint`", "exit 1")
+        self.assertIn("app.py", err)
+
+    def test_red_lint_is_not_counted(self):
+        self.checks(lint=self.lint("exit 1"))
+        for _ in range(4):
+            self.assert_blocked(self.edit())
+        self.assertEqual(len(self.files()), 4)
+        self.assertEqual(self.state_files(), [])
+
+    def test_write_and_multiedit_run_lint_too(self):
+        self.checks(lint=self.lint())
+        for tool in ("Write", "MultiEdit"):
+            self.assert_silent(self.edit(tool=tool))
+        self.assertEqual(self.files(), ["./app.py", "./app.py"])
+
+    def test_other_tools_are_silent(self):
+        self.checks(lint=self.lint("exit 1"))
+        self.assert_silent(self.edit(tool="Bash"))
+        self.assertEqual(self.files(), [])
+
+    def test_lint_runs_in_the_checkout_holding_the_file(self):
+        wt = os.path.join(self.tmp, "wt")
+        git(self.repo, "worktree", "add", "-q", wt, "-b", "builder")
+        write(os.path.join(wt, ".claude", "checks.json"), json.dumps({"lint": self.lint("exit 1")}))
+        self.checks(lint=self.lint("true"))
+        self.assert_blocked(self.edit(os.path.join(wt, "app.py"), cwd=wt))
+
+    def test_no_lint_key_is_silent(self):
+        self.checks(full=self.full("exit 1"), touched=self.full("exit 1"))
+        self.assert_silent(self.edit())
+        self.assertEqual(self.runs(), 0)
+
+    def test_no_checks_file_is_silent(self):
+        self.assert_silent(self.edit())
+
+    def test_cwd_outside_the_project_dir_does_nothing(self):
+        self.checks(lint=self.lint("exit 1"))
+        elsewhere = os.path.join(self.tmp, "project")
+        os.mkdir(elsewhere)
+        self.assert_silent(self.edit(project_dir=elsewhere))
+        self.assertEqual(self.files(), [])
+
+    def test_a_file_outside_the_project_dir_does_nothing(self):
+        other = os.path.join(self.tmp, "other")
+        os.mkdir(other)
+        git(other, "init", "-q")
+        write(os.path.join(other, "evil.py"), "z = 1\n")
+        write(os.path.join(other, ".claude", "checks.json"), json.dumps({"lint": self.lint("exit 1")}))
+        self.assert_silent(self.edit(os.path.join(other, "evil.py"), project_dir=self.repo))
+        self.assertEqual(self.files(), [])
+
+    def test_a_symlink_into_another_clone_does_nothing(self):
+        other = os.path.join(self.tmp, "other")
+        os.mkdir(other)
+        git(other, "init", "-q")
+        write(os.path.join(other, "evil.py"), "z = 1\n")
+        write(os.path.join(other, ".claude", "checks.json"), json.dumps({"lint": self.lint("exit 1")}))
+        os.symlink(os.path.join(other, "evil.py"), os.path.join(self.repo, "link.py"))
+        self.assert_silent(self.edit(os.path.join(self.repo, "link.py"), project_dir=self.repo))
+        self.assertEqual(self.files(), [])
+
+    def test_a_file_outside_any_repository_is_silent(self):
+        outside = os.path.join(self.tmp, "nowhere")
+        write(os.path.join(outside, ".claude", "checks.json"), json.dumps({"lint": self.lint("exit 1")}))
+        write(os.path.join(outside, "f.py"), "a = 1\n")
+        self.assert_silent(self.edit(os.path.join(outside, "f.py")))
+        self.assertEqual(self.files(), [])
 
 
 if __name__ == "__main__":
