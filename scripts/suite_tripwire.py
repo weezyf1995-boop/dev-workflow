@@ -14,7 +14,9 @@ Events:
     systemMessage naming the stored failure, without running `full` again, and that agent stays
     given up on that tree: later stops pass at once. A new landing on main starts afresh.
     `full` runs in the checkout the session is in, from its top level, and only when that checkout's
-    HEAD has main's tree, so a green run proves the tree it records (uncommitted changes aside).
+    HEAD has main's tree. With staged or unstaged edits to tracked files it still runs (red still
+    blocks) but records nothing, since a pass there doesn't prove the committed tree. Untracked
+    files don't count.
   SubagentStop: runs `touched` only when the payload's cwd is in a linked worktree (git-dir differs
     from git-common-dir), since builders always run in one and the main checkout is never a
     builder's; and only when that worktree has changes against its base: the merge-base of HEAD
@@ -263,7 +265,8 @@ def stop(d):
             blocked=f"{branch} holds commits not yet proven green.",
             fix=f"Fix {branch} and get `full` green before stopping.",
             gave_up=f"{branch} is still not proven green.")
-    greens.add(tree)
+    if git(top, "diff", "--quiet", "HEAD", "--").returncode == 0:
+        greens.add(tree)                        # only a clean checkout proves the committed tree
     done()
 
 

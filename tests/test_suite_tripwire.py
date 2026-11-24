@@ -382,6 +382,33 @@ class ProvenTreeTest(SuiteTripwireTest):
         self.assert_silent(self.stop())
         self.assertEqual(self.runs(), 0)
 
+    def test_uncommitted_edits_run_full_but_do_not_record_the_tree(self):
+        # main's tree is broken; an uncommitted fix makes `full` pass. That green says nothing
+        # about the committed tree, so the next stop on the clean tree must run (and block) again.
+        self.land("broken\n")
+        self.checks(full=self.full("grep -q 'x = ' app.py"))
+        write(os.path.join(self.repo, "app.py"), "x = 3\n")
+        self.assert_silent(self.stop())
+        self.assertEqual(self.runs(), 1)
+        git(self.repo, "checkout", "-q", "--", "app.py")
+        self.assert_blocked(self.stop())
+        self.assertEqual(self.runs(), 2)
+
+    def test_staged_edits_also_keep_the_tree_unrecorded(self):
+        self.checks(full=self.full("true"))
+        write(os.path.join(self.repo, "app.py"), "x = 3\n")
+        git(self.repo, "add", "app.py")
+        self.assert_silent(self.stop())
+        self.assert_silent(self.stop(session="s2"))
+        self.assertEqual(self.runs(), 2)
+
+    def test_untracked_files_do_not_keep_the_tree_unrecorded(self):
+        self.checks(full=self.full("true"))   # checks.json itself is untracked here
+        write(os.path.join(self.repo, "notes.txt"), "scratch\n")
+        self.stop()
+        self.assert_silent(self.stop(session="s2"))
+        self.assertEqual(self.runs(), 1)
+
 
 class SubagentTest(SuiteTripwireTest):
     """SubagentStop runs `touched` when the subagent's cwd is a linked worktree with changes against
