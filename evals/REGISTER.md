@@ -5,3 +5,4 @@ The case list and pass rule in `cases.json` are a sealed measure. They were comm
 | Date | Change | Reason |
 | --- | --- | --- |
 | 2026-11-20 | Case list and pass rule sealed as written in issue #16, "Routing evals". | First version, committed before the baseline run. |
+| 2026-11-25 | Baseline reset to the 2026-11-24 22:47 UTC run (9 green, 1 flaky, 0 red). Cases and pass rule unchanged. | Workflow commit 2e9b5e9 fixed the two red cases, and the session default moved to opus at high effort; later runs compare against this. |

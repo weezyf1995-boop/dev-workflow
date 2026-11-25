@@ -1,12 +1,12 @@
-# Routing evals, 2026-11-20 12:23 UTC, model: session default
+# Routing evals, 2026-11-24 22:47 UTC, model: session default
 green  light-typo            3/3
 green  frozen-four-lines     3/3
-flaky  migration-four-lines  2/3  run 2: missing marker 'full path'
-red    chaotic               0/3  run 1: missing marker 'diagnosing-bugs' | run 2: missing marker 'diagnosing-bugs' | run 3: missing marker 'diagnosing-bugs'
-flaky  complicated           2/3  run 2: fixture edited: added docs/research/csv-export-locale.md
+green  migration-four-lines  3/3
+green  chaotic               3/3
+green  complicated           3/3
 green  complex               3/3
 green  wayfinder             3/3
-red    recurring-flake       0/3  run 1: missing marker 'architectur' | run 2: missing marker 'architectur' | run 3: missing marker 'architectur'
-flaky  spec-check            1/3  run 2: missing marker 'spec check' | run 3: missing marker 'spec check'
+green  recurring-flake       3/3
+flaky  spec-check            2/3  run 1: missing marker 'spec check'
 green  user-only-command     3/3
-summary: 5 green, 3 flaky, 2 red of 10 cases
+summary: 9 green, 1 flaky, 0 red of 10 cases
