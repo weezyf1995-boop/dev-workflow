@@ -7,9 +7,13 @@ A snapshot is {"files": {relative path: digest}, "commits": count of commits
 reachable from any ref}. The runner takes one before and one after each run;
 compare() turns the pair into the comparison the judge reads.
 """
+import re
 from collections import namedtuple
 
 Comparison = namedtuple("Comparison", "changed added deleted new_commits")
+
+# A hyphen-minus, U+2010 HYPHEN or U+2011 NON-BREAKING HYPHEN, or any whitespace.
+SEPARATORS = re.compile("[-\u2010\u2011\\s]+")
 
 
 def compare(before, after):
@@ -21,6 +25,25 @@ def compare(before, after):
         deleted=sorted(p for p in b if p not in a),
         new_commits=max(0, after["commits"] - before["commits"]),
     )
+
+
+def normalise(text):
+    """Lowercase, with hyphens and runs of whitespace turned into one space, so
+    "Full-path" and "full  path" read the same. Used for must_contain only."""
+    return SEPARATORS.sub(" ", (text or "").lower())
+
+
+def alternates(item):
+    """A must_contain item is one marker or a list of alternates."""
+    return [item] if isinstance(item, str) else list(item)
+
+
+def without_allowed(comparison, prefixes):
+    """The comparison minus added files under one of the path prefixes. Changed
+    and deleted files and new commits are never discounted."""
+    prefixes = tuple(prefixes)
+    kept = [p for p in comparison.added if not p.startswith(prefixes)]
+    return comparison._replace(added=kept)
 
 
 def edited(comparison):
@@ -41,15 +64,20 @@ def describe_edit(comparison):
 
 def judge(case, reply, comparison):
     """Return the problems with one run of `case`: missing markers, forbidden
-    command names, and (for no-edit cases) one problem for any edit."""
-    text = (reply or "").lower()
+    command names, and (for no-edit cases) one problem for any edit that the
+    case's allowed_new_paths does not cover."""
+    literal = (reply or "").lower()
+    text = normalise(reply)
     problems = []
-    for marker in case["must_contain"]:
-        if marker.lower() not in text:
-            problems.append("missing marker %r" % marker)
+    for item in case["must_contain"]:
+        options = alternates(item)
+        if not any(normalise(option) in text for option in options):
+            problems.append("missing marker %s" % " or ".join(repr(o) for o in options))
     for command in case["must_not_contain"]:
-        if command.lower() in text:
+        if command.lower() in literal:
             problems.append("forbidden command %r" % command)
-    if case["no_edits"] and edited(comparison):
-        problems.append("fixture edited: %s" % describe_edit(comparison))
+    if case["no_edits"]:
+        counted = without_allowed(comparison, case.get("allowed_new_paths", ()))
+        if edited(counted):
+            problems.append("fixture edited: %s" % describe_edit(counted))
     return problems

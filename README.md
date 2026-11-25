@@ -171,9 +171,19 @@ One command checks whether the installed workflow still routes ten representativ
 python3 -B evals/run.py --out evals/results/latest.txt
 ```
 
-Each case in `evals/cases.json` runs three times, each in a fresh git copy of `evals/fixture/` (the copied `payments.py` gets its frozen-core marker at copy time, so no file in this repo carries one), through `claude -p` with JSON output and `--permission-mode acceptEdits`. A case is green when all three runs pass, flaky when one or two do, red when none do. The runner prints one line per case and a summary, and exits non-zero only when a case is red. Options: `--model` (by default none is passed, so your session default is used), `--case <name>`, `--out <file>`, `--jobs <n>`, `--timeout <seconds>` (per run, default 900), `--replies <dir>`. Compare the result with the baseline in `evals/results/baseline.txt`.
+Each case in `evals/cases.json` runs three times, each in a fresh git copy of `evals/fixture/` (the copied `payments.py` gets its frozen-core marker at copy time, so no file in this repo carries one), through `claude -p` with JSON output and `--permission-mode acceptEdits`. Every run is pinned to the coordinator's model and effort from the [model table](workflow/dev-workflow.md#models): `evals/run.py` holds them as its defaults and passes them to the CLI as `--model` and `--effort`, and `./check.sh` fails when they stop matching the table. A case is green when all three runs pass, flaky when one or two do, red when none do.
 
-The cases and the pass rule are sealed: change one only after recording the date and reason in `evals/REGISTER.md`. The evals cost model usage, so they stay out of `./check.sh` and CI; only the judge's tests run there.
+A reply is matched against a case's markers after lowercasing, with every hyphen or run of whitespace read as one space, so "full-path" satisfies the marker "full path". A marker may list alternates, and any one of them satisfies it. Forbidden command names are still matched as the literal string. A case that forbids edits may name path prefixes under which new files don't count; any other change to the fixture copy still fails it.
+
+The runner prints one line per case and a summary, then compares the run with the floor in `evals/results/baseline.txt`, which holds, per case, the worst pass count across three full runs. It prints one line per regression (a red case, or a case two or more runs below its floor) and exits non-zero on any regression. A flaky case within one run of its floor is reported and doesn't fail the run. `--no-baseline` skips the comparison. A baseline that is missing, isn't a floor or was taken with another model or effort gets one warning line, and then only a red case fails the run. To retake the baseline, save three full runs with `--out` and build the floor from them:
+
+```bash
+python3 -B evals/run.py --write-baseline run1.txt run2.txt run3.txt
+```
+
+Other options: `--model` and `--effort` (override the pin for a one-off run), `--case <name>`, `--out <file>`, `--jobs <n>`, `--timeout <seconds>` (per run, default 900), `--replies <dir>` (saves each run's reply).
+
+The cases and the pass rule are sealed: change one only after recording the date and reason in `evals/REGISTER.md`. The evals cost model usage, so they stay out of `./check.sh` and CI; only the tests of the judge and the runner run there, with no model call.
 
 Once the frozen tripwire is on, it denies the edit in the frozen-four-lines case, so that case's "no edits" passes whatever the agent tried. It then relies on its two markers, "frozen" and "full path".
 

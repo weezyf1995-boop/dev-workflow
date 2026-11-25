@@ -1,12 +1,15 @@
 {
   "sealed": "Sealed measure. Change a case, a marker or the pass rule only after adding an entry to evals/REGISTER.md with its date and reason, before the next run.",
-  "matching": "Case-insensitive substring match on the final reply. Every must_contain marker has to be present. must_not_contain holds command names only, each matched as the literal string, leading slash included. no_edits: no changed, new or deleted files in the fixture copy and no new commits.",
+  "matching": "must_contain: the final reply and each marker are lowercased and every hyphen or run of whitespace becomes one space (hyphen-minus, U+2010 and U+2011 count as hyphens), then each marker is matched as a substring. An item is one marker or a list of alternates; any one alternate satisfies the item, and every item has to be satisfied. must_not_contain holds command names only, each matched case-insensitively as the literal string, leading slash and hyphens included, with no other normalising. no_edits: no changed, new or deleted files in the fixture copy and no new commits. Where a case lists allowed_new_paths, new files under those path prefixes do not count as an edit; changed or deleted files, new commits and new files anywhere else still do.",
   "pass_rule": {
     "runs_per_case": 3,
     "green": "all three runs pass",
     "flaky": "one or two runs pass",
     "red": "no run passes",
-    "exit": "non-zero when any case is red; flaky cases are reported and do not fail the run"
+    "model": "every run uses the coordinator model and effort from the Models table in workflow/dev-workflow.md, held as the defaults in run.py",
+    "floor": "evals/results/baseline.txt holds, per case, the worst pass count across three full runs",
+    "regression": "a red case, or a case two or more runs below its floor",
+    "exit": "non-zero when any case is a regression; other flaky cases are reported and do not fail the run"
   },
   "cases": [
     {
@@ -42,7 +45,8 @@
       "prompt": "Add a CSV export of invoices. I don't know which library handles our locale rules.",
       "must_contain": ["research"],
       "must_not_contain": [],
-      "no_edits": true
+      "no_edits": true,
+      "allowed_new_paths": ["docs/research/"]
     },
     {
       "name": "complex",
@@ -68,7 +72,7 @@
     {
       "name": "spec-check",
       "prompt": "The spec at docs/specs/export.md is published. Cut it into tickets.",
-      "must_contain": ["spec check"],
+      "must_contain": [["spec check", "blocker"]],
       "must_not_contain": [],
       "no_edits": true
     },
