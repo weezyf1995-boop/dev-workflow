@@ -25,3 +25,13 @@ _Avoid_: Gate, guard, enforcement hook
 **Frozen core**:
 A component whose failure is unacceptable and whose change is rare, where correctness outranks changeability.
 _Avoid_: Critical path, protected file
+
+### Routing evals
+
+**Floor**:
+Per routing eval case, the worst pass count across three full runs, held in `evals/results/baseline.txt`.
+_Avoid_: Threshold, pass mark, target
+
+**Regression**:
+A red case (no run passes), or a case two or more runs below its floor.
+_Avoid_: Failure, flake, drop

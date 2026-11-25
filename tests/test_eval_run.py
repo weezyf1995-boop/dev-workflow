@@ -26,6 +26,8 @@ import run as runner  # noqa: E402
 CASE_NAMES = [c["name"] for c in runner.load_cases()["cases"]]
 # The pin itself is checked against the Models table by check 24; these tests only follow it.
 MODEL, EFFORT = runner.DEFAULT_MODEL, runner.DEFAULT_EFFORT
+# A level the CLI accepts that is not the pinned one, for the override tests.
+OTHER_EFFORT = next(level for level in runner.EFFORT_LEVELS if level != EFFORT)
 
 # The baseline as it stood before floors: one run's result file.
 OLD_BASELINE = """# Routing evals, 2026-11-24 22:47 UTC, model: session default
@@ -175,6 +177,16 @@ class FloorForTests(unittest.TestCase):
                 self.assertNotIn("\n", note)
 
 
+class NoFloorNoteTests(unittest.TestCase):
+    def test_cases_with_no_line_in_the_floor_are_named_in_one_line(self):
+        note = runner.no_floor_note({"a": (3, 3), "new": (2, 3), "newer": (0, 3)}, {"a": (3, 3)})
+        self.assertEqual(note, "baseline: no floor for new, newer; compared for red only")
+
+    def test_no_line_when_every_case_has_a_floor_or_nothing_was_compared(self):
+        self.assertIsNone(runner.no_floor_note({"a": (3, 3)}, {"a": (3, 3), "b": (3, 3)}))
+        self.assertIsNone(runner.no_floor_note({"a": (3, 3)}, {}))
+
+
 class MainTests(unittest.TestCase):
     """main() end to end, with run_once replaced so no CLI or model is called."""
 
@@ -236,11 +248,19 @@ class MainTests(unittest.TestCase):
         self.assertEqual(cmd[cmd.index("--effort") + 1], "some-effort")
 
     def test_flags_override_the_model_and_effort(self):
-        status, lines, _ = self.main("--model", "another-model", "--effort", "another-effort", "--case", "chaotic",
+        status, lines, _ = self.main("--model", "another-model", "--effort", OTHER_EFFORT, "--case", "chaotic",
                                      "--no-baseline")
         self.assertEqual(status, 0)
-        self.assertEqual(self.calls, [("chaotic", "another-model", "another-effort")] * 3)
-        self.assertTrue(lines[0].endswith("model: another-model, effort: another-effort"))
+        self.assertEqual(self.calls, [("chaotic", "another-model", OTHER_EFFORT)] * 3)
+        self.assertTrue(lines[0].endswith("model: another-model, effort: %s" % OTHER_EFFORT))
+
+    def test_effort_takes_only_the_levels_the_cli_documents(self):
+        self.assertEqual(runner.EFFORT_LEVELS, ("low", "medium", "high", "xhigh", "max"))
+        self.assertIn(EFFORT, runner.EFFORT_LEVELS)
+        status, lines, err = self.main("--effort", "another-effort", "--case", "chaotic", "--no-baseline")
+        self.assertEqual(status, 2)
+        self.assertIn("invalid choice: 'another-effort'", err)
+        self.assertEqual((lines, self.calls), ([], []))
 
     def test_result_lines_keep_their_shape_and_the_out_file_reads_back(self):
         self.write_floor()
@@ -271,6 +291,31 @@ class MainTests(unittest.TestCase):
         self.assertEqual([line for line in lines if line.startswith("regression: ")],
                          ["regression: spec-check is 1/3, 2 runs below its floor of 3/3"])
         self.assertEqual(lines[-1], "regression: spec-check is 1/3, 2 runs below its floor of 3/3")
+
+    def write_floor_without(self, name):
+        """A floor of 3/3 for every case but the named one, which has no line."""
+        self.write_floor()
+        with open(self.baseline, encoding="utf-8") as f:
+            kept = [line for line in f.read().splitlines() if line.split()[1:2] != [name]]
+        self.write("baseline.txt", "\n".join(kept) + "\n")
+
+    def test_a_case_with_no_floor_is_named_in_one_warning_line_and_the_exit_is_unchanged(self):
+        self.write_floor_without("chaotic")
+        status, lines, _ = self.main(failing={"chaotic": 2})
+        self.assertEqual(status, 0)
+        self.assertEqual([line for line in lines if line.startswith("baseline: ")],
+                         ["baseline: compared with the floor of runs A | B | C",
+                          "baseline: no floor for chaotic; compared for red only"])
+        self.assertEqual([line for line in lines if line.startswith("regression: ")], [])
+
+    def test_a_case_with_no_floor_still_fails_the_run_by_going_red(self):
+        self.write_floor_without("chaotic")
+        status, lines, _ = self.main(failing={"chaotic": 3, "spec-check": 2})
+        self.assertEqual(status, 1)
+        self.assertIn("baseline: no floor for chaotic; compared for red only", lines)
+        self.assertEqual([line for line in lines if line.startswith("regression: ")],
+                         ["regression: chaotic is red (0/3)",
+                          "regression: spec-check is 1/3, 2 runs below its floor of 3/3"])
 
     def test_no_baseline_skips_the_comparison(self):
         self.write_floor()
@@ -351,6 +396,34 @@ class MainTests(unittest.TestCase):
                 status, _, err = self.main("--write-baseline", *argv)
                 self.assertEqual(status, 2)
                 self.assertIn(needle, err)
+                with open(self.baseline, encoding="utf-8") as f:
+                    self.assertEqual(f.read(), OLD_BASELINE)
+        self.assertEqual(self.calls, [])
+
+    def test_write_baseline_refuses_two_files_with_the_same_header_timestamp(self):
+        self.write("baseline.txt", OLD_BASELINE)
+        paths = [self.write("a.txt", result_text(when="2026-11-25 10:00 UTC")),
+                 self.write("b.txt", result_text(when="2026-11-25 11:00 UTC", spec_check=2)),
+                 self.write("c.txt", result_text(when="2026-11-25 10:00 UTC", complicated=2))]
+        status, lines, err = self.main("--write-baseline", *paths)
+        self.assertEqual((status, lines), (2, []))
+        for needle in ("same header timestamp", "2026-11-25 10:00 UTC", "a.txt", "c.txt"):
+            self.assertIn(needle, err)
+        self.assertNotIn("b.txt", err)
+        with open(self.baseline, encoding="utf-8") as f:
+            self.assertEqual(f.read(), OLD_BASELINE)
+
+    def test_write_baseline_refuses_runs_off_the_pinned_model_or_effort(self):
+        self.write("baseline.txt", OLD_BASELINE)
+        for settings, needle in (({"model": "another-model"}, "model another-model, effort %s" % EFFORT),
+                                 ({"effort": OTHER_EFFORT}, "model %s, effort %s" % (MODEL, OTHER_EFFORT))):
+            with self.subTest(settings=settings):
+                paths = [self.write(n, result_text(when=n, **settings)) for n in ("a.txt", "b.txt", "c.txt")]
+                status, lines, err = self.main("--write-baseline", *paths)
+                self.assertEqual((status, lines), (2, []))
+                self.assertIn("pinned model and effort (model %s, effort %s)" % (MODEL, EFFORT), err)
+                self.assertIn(needle, err)
+                self.assertNotIn("timestamp", err)
                 with open(self.baseline, encoding="utf-8") as f:
                     self.assertEqual(f.read(), OLD_BASELINE)
         self.assertEqual(self.calls, [])

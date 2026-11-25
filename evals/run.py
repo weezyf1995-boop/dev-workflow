@@ -23,11 +23,14 @@ results/baseline.txt and prints one line per regression: a red case, or a case
 two or more runs below its floor. Exits 1 on any regression (2 on a usage
 error). --no-baseline skips the comparison, leaving red cases as the only
 regressions. A baseline that is missing, is not a floor or was taken with
-another model or effort gets one warning line and is treated the same way.
+another model or effort gets one warning line and is treated the same way. A
+case with no line in the floor is named in one warning line and can regress
+only by going red.
 
 --write-baseline runs nothing. It reads three result files written with --out,
-each a full run with the same model and effort, and writes
-results/baseline.txt: per case, the worst pass count of the three.
+each a full run with the pinned model and effort and its own header timestamp,
+and writes results/baseline.txt: per case, the worst pass count of the three.
+An input that breaks a rule is refused (exit 2) and the baseline is left alone.
 """
 import argparse
 import concurrent.futures
@@ -50,6 +53,8 @@ import judge  # noqa: E402
 # checks/24-model-names.sh fails when these stop matching it.
 DEFAULT_MODEL = "opus"
 DEFAULT_EFFORT = "high"
+# The levels `claude --help` documents for --effort.
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
 
 FIXTURE = os.path.join(HERE, "fixture")
 BASELINE = os.path.join(HERE, "results", "baseline.txt")
@@ -189,6 +194,16 @@ def floor_for(baseline_text, model, effort):
     return floor.passes, "baseline: compared with the floor of runs %s" % " | ".join(floor.sources)
 
 
+def no_floor_note(passes, floor_passes):
+    """One warning line naming the cases of a run that have no line in the
+    floor it was compared with, or None when every case has one or there was
+    no floor to compare with."""
+    missing = [name for name in passes if name not in floor_passes]
+    if not floor_passes or not missing:
+        return None
+    return "baseline: no floor for %s; compared for red only" % ", ".join(missing)
+
+
 def regressions(passes, floor_passes):
     """One line per regression under the sealed pass rule: a red case, or a
     case two or more runs below its floor. floor_passes is empty when there is
@@ -308,7 +323,8 @@ def read_baseline():
 def write_baseline(paths, case_names, runs_per_case):
     """Build the floor from three result files and write the baseline.
     Returns the exit status: 2, with the baseline untouched, when an input
-    cannot be used."""
+    cannot be used, two files carry the same header timestamp, or the runs
+    were not made with the pinned model and effort."""
     if len({os.path.realpath(p) for p in paths}) != len(paths):
         print("--write-baseline needs three different result files", file=sys.stderr)
         return 2
@@ -325,6 +341,18 @@ def write_baseline(paths, case_names, runs_per_case):
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
+    seen = {}
+    for path, run in named_runs:
+        if run.when in seen:
+            print("--write-baseline needs three separate runs: %s and %s carry the same header "
+                  "timestamp (%s)" % (seen[run.when], path, run.when), file=sys.stderr)
+            return 2
+        seen[run.when] = path
+    if (floor.model, floor.effort) != (DEFAULT_MODEL, DEFAULT_EFFORT):
+        print("--write-baseline needs runs with the pinned model and effort (model %s, effort %s): "
+              "these have model %s, effort %s"
+              % (DEFAULT_MODEL, DEFAULT_EFFORT, floor.model, floor.effort), file=sys.stderr)
+        return 2
     text = floor_text(floor)
     with open(BASELINE, "w", encoding="utf-8") as f:
         f.write(text)
@@ -337,7 +365,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--model", default=DEFAULT_MODEL,
                         help="model for the CLI (default: %(default)s, the coordinator's)")
-    parser.add_argument("--effort", default=DEFAULT_EFFORT,
+    parser.add_argument("--effort", default=DEFAULT_EFFORT, choices=EFFORT_LEVELS,
                         help="effort for the CLI (default: %(default)s, the coordinator's)")
     parser.add_argument("--case", help="run only the case with this name")
     parser.add_argument("--out", help="also write the results to this file")
@@ -399,6 +427,9 @@ def main(argv=None):
     if not args.no_baseline:
         floor_passes, note = floor_for(read_baseline(), args.model, args.effort)
         lines.append(note)
+        partial = no_floor_note(passed, floor_passes)
+        if partial:
+            lines.append(partial)
     regressed = regressions(passed, floor_passes)
     lines += regressed
 
