@@ -54,7 +54,7 @@ This folder is disposable. Delete `handoff/` in the last commit before `spec-2-m
 1. First run `git rev-parse HEAD` and `git log --oneline -3`. The base must contain the commit named in the brief. If not, stop and report.
 2. Make the change. Run the checks the change touches, then `./check.sh` once.
 3. Commit everything as one commit on the worktree's branch. Do not push, merge or open a pull request; the coordinator lands it.
-4. Report in under 300 words: Choices first, then what behaves differently, the commands run with pass or fail, the branch and the commit.
+4. Report only what the coordinator acts on: Choices and any pending ruling first, then the tests run with pass or fail, the branch and the commit. A reviewer's report is its verdict and findings.
 
 Reviews: one Standards and one Spec reviewer per ticket, reading the diff only, verdict on the last line. One fix round back to the same builder for a blocking finding. Each commit message names each reviewer, model and verdict.
 
