@@ -142,3 +142,5 @@ One ticket, one builder in a worktree (low-risk builder), two reviewers, one fix
 1. Re-sync the two account skills: upload `cloud/dev-workflow` and `skills/changeable-software` to your account's skills again (or run your sync job). A session can't do it. Until then cloud sessions report the cloud skill as behind `template.sha`.
 2. #34, `/doctor prompt-audit`, in a fresh local session.
 3. Two follow-ups from #32 that this batch recorded but did not make: allow `github.com` in the user template's sandbox network settings, and say in README "Guardrails" that the sandbox block does nothing in a cloud session. Neither has a ticket yet.
+
+**Since then (2026-11-25).** All three are done. The account skills were re-synced and now carry template `a55081d2e19d`. #34 ran and is closed, with each finding ruled on in the issue. The two #32 follow-ups landed in `1fa3d09`.
