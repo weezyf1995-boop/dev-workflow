@@ -26,8 +26,8 @@ The detail is on #32. In short:
 - **Gap 2, context guard:** the report arrives as `<agent-message from="…">` opening with `[Subagent hand-back]`. A `queued-remote-notifications` `<task-notification>` does fire UserPromptSubmit and passes the guard today. The subagent's own completion notice doesn't fire the hook. Only the cloud shape was tested. Ticketed as #36.
 - **Gap 2, pass-through:** the suite tripwire's give-up `systemMessage` for a subagent isn't in a headless `stream-json` transcript. The state file in `~/.claude/state` is the only record, so a headless coordinator can't count it as a failed build.
 - **Gap 2, builders:** in `acceptEdits` mode every git command a worktree builder ran needed approval. Not checked in auto mode.
-- **Gap 1, sandbox network:** `github.com` isn't on the sandbox allowlist. `git fetch` and `git push` each failed once with a 403 and worked when Claude allowed the host for that command. No keychain problem, so nothing goes into `excludedCommands`. The user template should allow `github.com`.
-- **Gap 1, cloud:** a cloud session started with the sandbox off although the project template turns it on. The template's sandbox block does nothing there.
+- **Gap 1, sandbox network:** `github.com` isn't on the sandbox allowlist. `git fetch` and `git push` each failed once with a 403 and worked when Claude allowed the host for that command. No keychain problem, so nothing goes into `excludedCommands`. The user template should allow `github.com`. Landed in `1fa3d09`: the user template's `sandbox.network.allowedDomains` lists `github.com`.
+- **Gap 1, cloud:** a cloud session started with the sandbox off although the project template turns it on. The template's sandbox block does nothing there. Landed in `1fa3d09`: README "Guardrails" says so.
 - **Gap 1, user settings:** Sami's user settings carry Alethia-specific `autoMode` entries (`environment` and two `soft_deny` rules) that apply in every repo. They belong in Alethia's project settings.
 - **Where I needed you:** the hand tests could not be done as written. The wizard's "Expected / Result" wording read as "type the expected value", the Mac's folders weren't reachable from a cloud session, and the checks ended up run headless by a script with Claude judging the output. Deleting a remote branch was refused twice: by the cloud proxy during the run, and by the auto mode classifier in the session that did #32.
 
@@ -37,7 +37,7 @@ The detail is on #32. In short:
 
 #36 is landed and closed. The context guard passes both logged report shapes and refuses the queued-notifications notice and a message from another session past the stop. This repo holds no cloud copy of the guard (`.claude/hooks/` doesn't exist here), so that criterion comes down to project repos refreshing their copies, as the README says.
 
-Then Sami's: re-sync the two account skills (`cloud/dev-workflow`, `skills/changeable-software`), and #34. Two follow-ups from #32 have no ticket yet: `github.com` in the user template's sandbox network settings, and a README line that the sandbox block does nothing in a cloud session.
+Then Sami's: re-sync the two account skills (`cloud/dev-workflow`, `skills/changeable-software`), and #34. The two follow-ups from #32 landed in `1fa3d09`, without tickets: `github.com` in the user template's sandbox network settings, and the README lines that the sandbox block does nothing in a cloud session.
 
 ## Rules that hold
 
