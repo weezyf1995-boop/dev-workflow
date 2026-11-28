@@ -35,3 +35,9 @@ _Avoid_: Threshold, pass mark, target
 **Regression**:
 A red case (no run passes), or a case two or more runs below its floor.
 _Avoid_: Failure, flake, drop
+
+### Main flow
+
+**Show-me**:
+The compact artefact (a screen, a state or schema diagram, or a contract table) built from a published spec for the user to approve before tickets are cut, and the step that produces it.
+_Avoid_: Gate, mockup, visual check, design review
