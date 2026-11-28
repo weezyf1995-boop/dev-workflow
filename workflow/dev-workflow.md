@@ -151,6 +151,8 @@ You do:
 
 /improve-codebase-architecture, pick one candidate, take it into /grill-with-docs, design it on /codebase-design. Alongside it, run the context report (see Context budget) and read "Where I needed you" next to it, then tighten one rule or hand off one item if either flags something. A bug that comes back twice is an architecture question, not another patch; /diagnosing-bugs post-mortems feed the same route.
 
+A lesson (from a correction, an escaped bug or a post-mortem) lands on the highest rung that can hold it: a deterministic check or lint rule, then a regression eval case or test, then a changeable-software invariant, and only last a CLAUDE.md or skill note, since every note is re-read on every request (see Context budget). When a lesson lands as a note, say in the commit which higher rung couldn't hold it and why.
+
 After any edit to this workflow or the changeable-software skill, run the routing evals from the dev-workflow repo (`python3 -B evals/run.py`) and compare with the baseline in `evals/results/baseline.txt`.
 
 Spec drift, in the same pass when the repo has specs: a fresh Explore subagent (a helper subagent) gets the spec issues closed since the last pass and the current code, and lists each place where they now disagree, with the file and the spec line. Claude doesn't pick a side. Each disagreement goes to the user as a choice: the code is wrong (a bug, via /triage) or the spec went stale (a comment on the spec issue saying what changed and why).
