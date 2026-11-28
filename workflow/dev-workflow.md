@@ -29,7 +29,7 @@ On any coding request, run changeable-software's path check and Cynefin classifi
 - Too big and foggy to hold in one session: /wayfinder, which merges at /to-spec. Never for a well-scoped feature.
 - Incoming bugs or requests the user didn't write: /triage, then /implement. Never triage tickets /to-tickets made.
 
-Say the route in the reply by name (the skill, or light or full path), even when you stop before starting it because something is missing. The user should see which rule fired.
+Name the route in the reply's first sentence (the skill, or light or full path), even when you stop before starting it because something is missing, and even when you have already invoked the skill and are replying in its terms. The user should see which rule fired.
 
 Name any frozen core or sealed measure here. Either one forces the full path regardless of size.
 

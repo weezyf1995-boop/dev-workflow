@@ -1,10 +1,10 @@
 # Routing evals floor: the worst result per case across three full runs
-# runs: 2026-11-26 21:53 UTC | 2026-11-26 22:11 UTC | 2026-11-26 22:26 UTC
+# runs: 2026-11-28 10:14 UTC | 2026-11-28 10:17 UTC | 2026-11-28 10:20 UTC
 # model: opus, effort: high
 green  light-typo            3/3
 green  frozen-four-lines     3/3
 green  migration-four-lines  3/3
-flaky  chaotic               2/3
+green  chaotic               3/3
 green  complicated           3/3
 green  complex               3/3
 green  wayfinder             3/3

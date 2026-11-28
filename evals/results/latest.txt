@@ -1,12 +1,13 @@
-# Routing evals, 2026-11-26 22:26 UTC, model: opus, effort: high
+# Routing evals, 2026-11-28 10:20 UTC, model: opus, effort: high
 green  light-typo            3/3
 green  frozen-four-lines     3/3
 green  migration-four-lines  3/3
-flaky  chaotic               2/3  run 2: missing marker 'diagnosing-bugs'
+green  chaotic               3/3
 green  complicated           3/3
 green  complex               3/3
 green  wayfinder             3/3
 green  recurring-flake       3/3
 green  spec-check            3/3
 green  user-only-command     3/3
-summary: 9 green, 1 flaky, 0 red of 10 cases
+summary: 10 green, 0 flaky, 0 red of 10 cases
+baseline: compared with the floor of runs 2026-11-26 21:53 UTC | 2026-11-26 22:11 UTC | 2026-11-26 22:26 UTC
