@@ -164,6 +164,47 @@ class AllowedNewPathsTests(unittest.TestCase):
         problems = judge.judge(CASES["complicated"], self.REPLY, judge.compare(before, after))
         self.assertEqual(problems, ["fixture edited: changed docs/research/old.md"])
 
+    def committed(self, *changes, files=None):
+        """A before and after snapshot where the run made one commit with the
+        given (status, path) changes; files are the after tree's new files."""
+        old = {"c1": [["A", "README.md"], ["A", "payments.py"]]}
+        before = dict(SNAPSHOT, commit_files=old)
+        after = self.after(files=files or {}, commits=2)
+        after["commit_files"] = dict(old, c2=[list(c) for c in changes])
+        return before, after
+
+    def test_commit_adding_only_files_under_an_allowed_prefix_is_not_an_edit(self):
+        before, after = self.committed(("A", "docs/research/x.md"), ("A", "docs/research/y.md"),
+                                       files={"docs/research/x.md": "n", "docs/research/y.md": "n"})
+        self.assertEqual(judge.judge(CASES["complicated"], self.REPLY, judge.compare(before, after)), [])
+
+    def test_commit_adding_an_allowed_file_and_one_elsewhere_is_an_edit(self):
+        before, after = self.committed(("A", "docs/research/x.md"), ("A", "export.py"),
+                                       files={"docs/research/x.md": "n", "export.py": "n"})
+        problems = judge.judge(CASES["complicated"], self.REPLY, judge.compare(before, after))
+        self.assertEqual(problems, ["fixture edited: added export.py; 1 new commit"])
+
+    def test_commit_modifying_an_existing_file_is_an_edit(self):
+        before, after = self.committed(("M", "README.md"), files={"README.md": "changed"})
+        problems = judge.judge(CASES["complicated"], self.REPLY, judge.compare(before, after))
+        self.assertEqual(problems, ["fixture edited: changed README.md; 1 new commit"])
+
+    def test_commit_modifying_a_file_under_the_prefix_is_an_edit(self):
+        before, after = self.committed(("M", "docs/research/x.md"))
+        problems = judge.judge(CASES["complicated"], self.REPLY, judge.compare(before, after))
+        self.assertEqual(problems, ["fixture edited: 1 new commit"])
+
+    def test_empty_commit_is_an_edit(self):
+        before, after = self.committed()
+        problems = judge.judge(CASES["complicated"], self.REPLY, judge.compare(before, after))
+        self.assertEqual(problems, ["fixture edited: 1 new commit"])
+
+    def test_allowed_commit_still_counts_for_a_case_without_the_field(self):
+        before, after = self.committed(("A", "docs/research/x.md"), files={"docs/research/x.md": "n"})
+        reply = "payments.py is a frozen core, so it takes the full path."
+        problems = judge.judge(CASES["frozen-four-lines"], reply, judge.compare(before, after))
+        self.assertEqual(problems, ["fixture edited: added docs/research/x.md; 1 new commit"])
+
     def test_a_case_without_the_field_allows_no_new_file(self):
         reply = "payments.py is a frozen core, so it takes the full path."
         after = self.after(files={"docs/research/x.md": "n"})

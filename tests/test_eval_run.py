@@ -187,6 +187,42 @@ class NoFloorNoteTests(unittest.TestCase):
         self.assertIsNone(runner.no_floor_note({"a": (3, 3)}, {}))
 
 
+class SnapshotTests(unittest.TestCase):
+    """snapshot() on a real fixture copy: each commit's files reach the judge."""
+
+    def setUp(self):
+        self.root, self.repo = runner.make_copy()
+        self.addCleanup(shutil.rmtree, self.root, True)
+
+    def commit(self, *paths, message="run"):
+        for path in paths:
+            full = os.path.join(self.repo, path)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            with open(full, "a", encoding="utf-8") as f:
+                f.write("x\n")
+        runner.git(self.repo, "add", "-A")
+        runner.git(self.repo, "commit", "-q", "-m", message)
+
+    def problems(self, case, before):
+        import judge
+        reply = "show-me, approval"
+        return judge.judge(case, reply, judge.compare(before, runner.snapshot(self.repo)))
+
+    def test_commit_adding_files_under_an_allowed_prefix_is_discounted(self):
+        case = {"must_contain": [], "must_not_contain": [], "no_edits": True,
+                "allowed_new_paths": ["docs/show-me/"]}
+        before = runner.snapshot(self.repo)
+        self.commit("docs/show-me/39-screen.html", "docs/show-me/39-model.md")
+        self.assertEqual(self.problems(case, before), [])
+
+    def test_commit_changing_a_fixture_file_still_counts(self):
+        case = {"must_contain": [], "must_not_contain": [], "no_edits": True,
+                "allowed_new_paths": ["docs/show-me/"]}
+        before = runner.snapshot(self.repo)
+        self.commit("docs/show-me/39-screen.html", "README.md")
+        self.assertEqual(self.problems(case, before), ["fixture edited: changed README.md; 1 new commit"])
+
+
 class MainTests(unittest.TestCase):
     """main() end to end, with run_once replaced so no CLI or model is called."""
 
@@ -269,7 +305,7 @@ class MainTests(unittest.TestCase):
         self.assertEqual(status, 0)
         self.assertIn("green  light-typo            3/3", lines)
         self.assertIn("flaky  spec-check            2/3  run 1: missing marker 'made up'", lines)
-        self.assertIn("summary: 9 green, 1 flaky, 0 red of 10 cases", lines)
+        self.assertIn("summary: 10 green, 1 flaky, 0 red of 11 cases", lines)
         with open(out, encoding="utf-8") as f:
             text = f.read()
         self.assertEqual(text.splitlines(), lines)

@@ -4,13 +4,15 @@ judge(case, reply, comparison) returns a list of problems; an empty list means
 the run passed. The matching rules are sealed in cases.json ("matching").
 
 A snapshot is {"files": {relative path: digest}, "commits": count of commits
-reachable from any ref}. The runner takes one before and one after each run;
-compare() turns the pair into the comparison the judge reads.
+reachable from any ref, "commit_files": {commit sha: [[status, path], ...]}}.
+"commit_files" is optional; without it no new commit can be discounted. The
+runner takes one before and one after each run; compare() turns the pair into
+the comparison the judge reads.
 """
 import re
 from collections import namedtuple
 
-Comparison = namedtuple("Comparison", "changed added deleted new_commits")
+Comparison = namedtuple("Comparison", "changed added deleted new_commits commit_changes")
 
 # A hyphen-minus, U+2010 HYPHEN or U+2011 NON-BREAKING HYPHEN, or any whitespace.
 SEPARATORS = re.compile("[-\u2010\u2011\\s]+")
@@ -24,6 +26,8 @@ def compare(before, after):
         added=sorted(p for p in a if p not in b),
         deleted=sorted(p for p in b if p not in a),
         new_commits=max(0, after["commits"] - before["commits"]),
+        commit_changes=[after.get("commit_files", {})[sha] for sha in sorted(after.get("commit_files", {}))
+                        if sha not in before.get("commit_files", {})],
     )
 
 
@@ -39,11 +43,17 @@ def alternates(item):
 
 
 def without_allowed(comparison, prefixes):
-    """The comparison minus added files under one of the path prefixes. Changed
-    and deleted files and new commits are never discounted."""
+    """The comparison minus added files under one of the path prefixes, and
+    minus each new commit whose every change adds a file under one of them.
+    Changed and deleted files, empty commits and commits touching anything
+    else still count."""
     prefixes = tuple(prefixes)
+    if not prefixes:
+        return comparison
     kept = [p for p in comparison.added if not p.startswith(prefixes)]
-    return comparison._replace(added=kept)
+    allowed = [c for c in comparison.commit_changes
+               if c and all(status == "A" and path.startswith(prefixes) for status, path in c)]
+    return comparison._replace(added=kept, new_commits=max(0, comparison.new_commits - len(allowed)))
 
 
 def edited(comparison):

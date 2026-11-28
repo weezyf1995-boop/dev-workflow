@@ -257,9 +257,29 @@ def snapshot(repo):
                 files[os.path.relpath(full, repo)] = hashlib.sha256(f.read()).hexdigest()
     try:
         commits = int(git(repo, "rev-list", "--all", "--count").strip() or 0)
+        log = git(repo, "log", "--all", "--no-renames", "--name-status", "-z", "--format=%x00%H")
     except subprocess.CalledProcessError:
-        commits = 0
-    return {"files": files, "commits": commits}
+        commits, log = 0, ""
+    return {"files": files, "commits": commits, "commit_files": commit_files(log)}
+
+
+def commit_files(log):
+    """Parse `git log --name-status -z --format=%x00%H` into {sha: [[status, path], ...]}.
+    A merge commit lists no files, so the judge never discounts it."""
+    result, sha, fields = {}, None, [f.strip("\n") for f in log.split("\0")]
+    i = 0
+    while i < len(fields):
+        field = fields[i]
+        if re.fullmatch("[0-9a-f]{40,64}", field):
+            sha = field
+            result[sha] = []
+            i += 1
+        elif field and sha is not None and i + 1 < len(fields):
+            result[sha].append([field, fields[i + 1]])
+            i += 2
+        else:
+            i += 1
+    return result
 
 
 KEEP_ENV = ("CLAUDE_CONFIG_DIR", "CLAUDE_CODE_OAUTH_TOKEN", "CLAUDE_CODE_USE_")

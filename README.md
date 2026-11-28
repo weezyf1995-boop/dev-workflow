@@ -16,7 +16,7 @@ The full walkthrough is in [docs/workflow-guide.md](docs/workflow-guide.md). Thi
 | `scripts/frozen_tripwire.py` | The frozen tripwire: a hook that denies edit tools on files marked as frozen core. Its tests are `tests/test_frozen_tripwire.py`, run by `checks/31-frozen-tripwire.sh`. See [Hooks](#hooks). |
 | `install.sh` | Installs everything below at user level, so every project gets it. |
 | `install/skills.lock` | The upstream commit of each third-party skill that the workflow was last checked against. `install.sh` installs these commits. |
-| `evals/` | The routing evals: ten sealed cases, a fixture, the runner, its judge, the register of changes and the committed results. See [Routing evals](#routing-evals). |
+| `evals/` | The routing evals: eleven sealed cases, a fixture, the runner, its judge, the register of changes and the committed results. See [Routing evals](#routing-evals). |
 | `docs/workflow-guide.md` | The long-form explanation. |
 
 ## Credits
@@ -165,7 +165,7 @@ The ruleset stops lost work; CI catches broken work. `.github/workflows/check.ym
 
 ## Routing evals
 
-One command checks whether the installed workflow still routes ten representative requests correctly. Run it after any edit to the workflow or the skill, on a machine where `install.sh` has been run and the Claude Code CLI is logged in:
+One command checks whether the installed workflow still routes eleven representative requests correctly. Run it after any edit to the workflow or the skill, on a machine where `install.sh` has been run and the Claude Code CLI is logged in:
 
 ```bash
 python3 -B evals/run.py --out evals/results/latest.txt

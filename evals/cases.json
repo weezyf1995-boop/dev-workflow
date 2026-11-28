@@ -1,6 +1,6 @@
 {
   "sealed": "Sealed measure. Change a case, a marker or the pass rule only after adding an entry to evals/REGISTER.md with its date and reason, before the next run.",
-  "matching": "must_contain: the final reply and each marker are lowercased and every hyphen or run of whitespace becomes one space (hyphen-minus, U+2010 and U+2011 count as hyphens), then each marker is matched as a substring. An item is one marker or a list of alternates; any one alternate satisfies the item, and every item has to be satisfied. must_not_contain holds command names only, each matched case-insensitively as the literal string, leading slash and hyphens included, with no other normalising. no_edits: no changed, new or deleted files in the fixture copy and no new commits. Where a case lists allowed_new_paths, new files under those path prefixes do not count as an edit; changed or deleted files, new commits and new files anywhere else still do.",
+  "matching": "must_contain: the final reply and each marker are lowercased and every hyphen or run of whitespace becomes one space (hyphen-minus, U+2010 and U+2011 count as hyphens), then each marker is matched as a substring. An item is one marker or a list of alternates; any one alternate satisfies the item, and every item has to be satisfied. must_not_contain holds command names only, each matched case-insensitively as the literal string, leading slash and hyphens included, with no other normalising. no_edits: no changed, new or deleted files in the fixture copy and no new commits. Where a case lists allowed_new_paths, new files under those path prefixes do not count as an edit, nor does a new non-merge commit that adds at least one file and only adds files under them; each prefix ends in \"/\", because the match is a plain prefix match and \"docs/show-me\" would also match \"docs/show-me-other/\"; changed or deleted files, other new commits and new files anywhere else still do.",
   "pass_rule": {
     "runs_per_case": 3,
     "green": "all three runs pass",
@@ -82,6 +82,14 @@
       "must_contain": ["/to-spec"],
       "must_not_contain": [],
       "no_edits": true
+    },
+    {
+      "name": "show-me",
+      "prompt": "The spec at docs/specs/export.md is published and the spec check found nothing. It adds a download button to the invoices page. Cut it into tickets.",
+      "must_contain": ["show-me", "approv"],
+      "must_not_contain": [],
+      "no_edits": true,
+      "allowed_new_paths": ["docs/show-me/"]
     }
   ]
 }
